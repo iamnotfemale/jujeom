@@ -84,7 +84,7 @@ CREATE TABLE payments (
   order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   amount INT NOT NULL,
   status TEXT NOT NULL DEFAULT 'waiting'
-    CHECK (status IN ('waiting', 'confirmed', 'completed')),
+    CHECK (status IN ('waiting', 'confirmed', 'completed', 'cancelled')),
   method TEXT NOT NULL DEFAULT 'toss'
     CHECK (method IN ('toss', 'transfer')),
   customer_name TEXT DEFAULT '',

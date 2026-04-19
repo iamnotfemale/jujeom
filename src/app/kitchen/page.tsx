@@ -118,7 +118,12 @@ export default function KitchenKDSPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { fetchData(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchData())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // 초기화 broadcast 수신
+    const resetChannel = supabase
+      .channel('data-reset-kds')
+      .on('broadcast', { event: 'reset' }, () => { setTickets([]); fetchData(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(resetChannel); };
   }, [fetchData]);
 
   // 1-second timer tick
@@ -349,6 +354,9 @@ export default function KitchenKDSPage() {
                     <div style={k.tableNum}>{ticket.tableNumber}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, color: 'var(--ink-400)', fontWeight: 500 }}>#{ticket.orderNumber}</div>
+                      <div className="numeric" style={{ fontSize: 10, color: 'var(--ink-300)', marginTop: 1 }}>
+                        {new Date(ticket.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                      </div>
                     </div>
                     {!isCompleted && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -2,9 +2,12 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import PinLogin from '@/components/PinLogin';
 import { supabase } from '@/lib/supabase';
+
+const AdminStoreContext = createContext<string>('주점');
+export function useAdminStoreName() { return useContext(AdminStoreContext); }
 
 interface NavItem {
   icon: string;
@@ -19,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [staffCall, setStaffCall] = useState<{ table: string; time: string } | null>(null);
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [paymentPendingCount, setPaymentPendingCount] = useState<number | null>(null);
   const [storeName, setStoreName] = useState<string>('주점');
@@ -52,7 +56,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    /* Staff call broadcast subscription */
+    const staffChannel = supabase
+      .channel('staff-calls')
+      .on('broadcast', { event: 'call' }, (payload: { payload: { table: string; time: string } }) => {
+        setStaffCall({ table: payload.payload.table, time: payload.payload.time });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(staffChannel);
+    };
   }, []);
 
   /* Fetch store name */
@@ -187,9 +202,69 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main */}
         <main style={styles.main}>
-          {children}
+          <AdminStoreContext.Provider value={storeName}>
+            {children}
+          </AdminStoreContext.Provider>
         </main>
       </div>
+
+      {/* Staff Call Modal — visible on ALL admin pages */}
+      {staffCall && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(14,18,32,.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            animation: 'fadeIn .15s ease',
+          }}
+          onClick={() => setStaffCall(null)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 'var(--r-lg)',
+              padding: '32px 36px',
+              maxWidth: 400,
+              width: '90%',
+              boxShadow: 'var(--shadow-3)',
+              textAlign: 'center',
+              border: '2px solid var(--coral)',
+              animation: 'pop .2s ease',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'color-mix(in oklab, var(--coral) 12%, white)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px', fontSize: 28,
+            }}>
+              🔔
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--ink-900)' }}>
+              직원 호출
+            </div>
+            <div style={{ fontSize: 15, color: 'var(--ink-600)', marginBottom: 24, lineHeight: 1.5 }}>
+              <strong style={{ color: 'var(--coral)' }}>{staffCall.table}번 테이블</strong>에서
+              <br />직원을 호출했습니다!
+            </div>
+            <button
+              onClick={() => setStaffCall(null)}
+              style={{
+                padding: '10px 32px', borderRadius: 'var(--r-md)',
+                border: 0, background: 'var(--ink-900)', color: '#fff',
+                fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--f-sans)',
+              }}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

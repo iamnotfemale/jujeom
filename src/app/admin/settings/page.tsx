@@ -234,13 +234,30 @@ export default function SettingsPage() {
   };
 
   const resetPayments = async () => {
-    await supabase.from('payments').delete().gte('id', 0);
-    await supabase.from('order_items').delete().gte('id', 0);
-    await supabase.from('orders').delete().gte('id', 0);
+    // FK 순서: payments → order_items → orders
+    const r1 = await supabase.from('payments').delete().neq('id', 0);
+    console.log('payments delete:', r1.error ?? 'ok', r1.count);
+    const r2 = await supabase.from('order_items').delete().neq('id', 0);
+    console.log('order_items delete:', r2.error ?? 'ok', r2.count);
+    const r3 = await supabase.from('orders').delete().neq('id', 0);
+    console.log('orders delete:', r3.error ?? 'ok', r3.count);
+    // 다른 탭(결제 내역, 주방 KDS)에 초기화 알림
+    try {
+      const ch = supabase.channel('data-reset');
+      await ch.subscribe();
+      await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
+      supabase.removeChannel(ch);
+    } catch (e) { console.error('broadcast error:', e); }
   };
 
   const resetTableStatus = async () => {
-    await supabase.from('tables').update({ status: 'empty' }).gte('id', 0);
+    await supabase.from('tables').update({ status: 'empty' }).neq('id', 0);
+    try {
+      const ch = supabase.channel('data-reset');
+      await ch.subscribe();
+      await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
+      supabase.removeChannel(ch);
+    } catch (e) { console.error('broadcast error:', e); }
   };
 
   const resetAll = async () => {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useAdminStoreName } from '../layout';
 import type { Order, Table, Payment, StoreSettings, OrderItem } from '@/lib/database.types';
 
 interface DashboardStats {
@@ -23,7 +24,7 @@ interface RecentOrder {
 }
 
 export default function DashboardPage() {
-  const [staffCall, setStaffCall] = useState<{ table: string; time: string } | null>(null);
+  const storeName = useAdminStoreName();
   const [isOpen, setIsOpen] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({
     totalOrders: 0,
@@ -130,17 +131,14 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
+    // 초기화 broadcast 수신
+    const resetChannel = supabase
+      .channel('data-reset-dashboard')
+      .on('broadcast', { event: 'reset' }, () => fetchData())
+      .subscribe();
+    return () => { clearInterval(interval); supabase.removeChannel(resetChannel); };
   }, [fetchData]);
 
-  useEffect(() => {
-    const channel = supabase.channel('staff-calls')
-      .on('broadcast', { event: 'call' }, (payload) => {
-        setStaffCall({ table: payload.payload.table, time: payload.payload.time });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
 
   const toggleOpen = async () => {
     const next = !isOpen;
@@ -196,7 +194,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>대시보드</h1>
+          <h1 style={s.title}>{storeName} · 대시보드</h1>
           <p style={s.date}>{todayStr}</p>
         </div>
         <button onClick={toggleOpen} style={{ ...s.toggleBtn, background: isOpen ? 'var(--mint)' : 'var(--ink-300)' }}>
@@ -364,76 +362,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Staff Call Modal */}
-      {staffCall && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(14,18,32,.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            animation: 'fadeIn .15s ease',
-          }}
-          onClick={() => setStaffCall(null)}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 'var(--r-lg)',
-              padding: '32px 36px',
-              maxWidth: 400,
-              width: '90%',
-              boxShadow: 'var(--shadow-3)',
-              textAlign: 'center',
-              border: '2px solid var(--coral)',
-              animation: 'pop .2s ease',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: 'color-mix(in oklab, var(--coral) 12%, white)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                fontSize: 28,
-              }}
-            >
-              🔔
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--ink-900)' }}>
-              직원 호출
-            </div>
-            <div style={{ fontSize: 15, color: 'var(--ink-600)', marginBottom: 24, lineHeight: 1.5 }}>
-              <strong style={{ color: 'var(--coral)' }}>{staffCall.table}번 테이블</strong>에서
-              <br />직원을 호출했습니다!
-            </div>
-            <button
-              onClick={() => setStaffCall(null)}
-              style={{
-                padding: '10px 32px',
-                borderRadius: 'var(--r-md)',
-                border: 0,
-                background: 'var(--ink-900)',
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: 'var(--f-sans)',
-              }}
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

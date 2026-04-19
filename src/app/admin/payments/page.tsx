@@ -7,16 +7,19 @@ import type { Order, Payment, OrderItem } from '@/lib/database.types';
 interface PaymentRow {
   orderId: number;
   orderNumber: string;
+  tableId: number;
   tableNumber: number;
   customerName: string | null;
   customerPhone: string | null;
   items: string;
   amount: number;
-  paymentStatus: 'waiting' | 'confirmed' | 'completed';
+  paymentStatus: 'waiting' | 'confirmed' | 'completed' | 'cancelled';
+  method: 'toss' | 'transfer';
   createdAt: string;
+  note: string | null;
 }
 
-type FilterTab = '전체' | '입금 대기' | '입금 확인' | '완료';
+type FilterTab = '전체' | '입금 대기' | '입금 확인' | '완료' | '취소';
 
 const FLOW_STEPS = [
   '손님이 메뉴 선택',
@@ -33,6 +36,7 @@ export default function PaymentsPage() {
   const [filter, setFilter] = useState<FilterTab>('전체');
   const [now, setNow] = useState(Date.now());
   const [toast, setToast] = useState<string | null>(null);
+  const [detailRow, setDetailRow] = useState<PaymentRow | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const showToast = (msg: string) => {
@@ -79,13 +83,16 @@ export default function PaymentsPage() {
         allOrders.map((o) => ({
           orderId: o.id,
           orderNumber: o.order_number,
+          tableId: o.table_id,
           tableNumber: o.table_number,
           customerName: payMap[o.id]?.customer_name ?? null,
           customerPhone: payMap[o.id]?.customer_phone ?? null,
           items: itemsMap[o.id] ?? '-',
           amount: o.final_amount,
           paymentStatus: (payMap[o.id]?.status ?? 'waiting') as PaymentRow['paymentStatus'],
+          method: (payMap[o.id]?.method ?? 'transfer') as PaymentRow['method'],
           createdAt: o.created_at,
+          note: o.note ?? null,
         }))
       );
     } catch (err) {
@@ -97,13 +104,17 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchData();
-    // Realtime subscription
     const channel = supabase
       .channel('payments-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // 초기화 broadcast 수신
+    const resetChannel = supabase
+      .channel('data-reset-payments')
+      .on('broadcast', { event: 'reset' }, () => { setRows([]); fetchData(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(resetChannel); };
   }, [fetchData]);
 
   // Timer tick
@@ -112,32 +123,65 @@ export default function PaymentsPage() {
     return () => clearInterval(id);
   }, []);
 
-  const updatePaymentStatus = async (orderId: number, newStatus: PaymentRow['paymentStatus']) => {
-    const paymentUpdate: any = { status: newStatus };
+  const updatePaymentStatus = async (orderId: number, newStatus: PaymentRow['paymentStatus'], tableId?: number) => {
+    const paymentUpdate: Record<string, unknown> = { status: newStatus };
     if (newStatus === 'confirmed') paymentUpdate.confirmed_at = new Date().toISOString();
     await supabase.from('payments').update(paymentUpdate).eq('order_id', orderId);
 
     let orderStatus = 'pending';
     if (newStatus === 'confirmed') orderStatus = 'accepted';
     else if (newStatus === 'completed') orderStatus = 'served';
+    else if (newStatus === 'cancelled') orderStatus = 'cancelled';
     await supabase.from('orders').update({ status: orderStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
 
-    showToast('상태 변경 완료');
+    // 입금 확인 시 해당 테이블이 비어있으면 사용중으로 변경
+    if (newStatus === 'confirmed' && tableId) {
+      const { data: tbl } = await supabase.from('tables').select('status').eq('id', tableId).single();
+      if (tbl?.status === 'empty') {
+        await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId);
+      }
+    }
+
+    // 취소 시 재고 원복
+    if (newStatus === 'cancelled') {
+      try {
+        const { data: orderItems } = await supabase
+          .from('order_items')
+          .select('menu_id, quantity')
+          .eq('order_id', orderId);
+        for (const item of orderItems ?? []) {
+          const { data: menu } = await supabase.from('menus').select('stock').eq('id', item.menu_id).single();
+          if (menu) {
+            await supabase.from('menus').update({
+              stock: menu.stock + item.quantity,
+              is_sold_out: false,
+            }).eq('id', item.menu_id);
+          }
+        }
+      } catch (e) { console.error('재고 원복 실패:', e); }
+    }
+
+    showToast(newStatus === 'cancelled' ? '주문 취소 · 재고 원복 완료' : '상태 변경 완료');
     fetchData();
   };
 
-  const confirmPayment = async (orderId: number) => {
-    await updatePaymentStatus(orderId, 'confirmed');
+  const confirmPayment = async (orderId: number, tableId?: number) => {
+    await updatePaymentStatus(orderId, 'confirmed', tableId);
   };
 
   const bulkConfirm = async () => {
-    const waitingIds = filtered.filter((r) => r.paymentStatus === 'waiting').map((r) => r.orderId);
-    if (waitingIds.length === 0) return;
-    for (const id of waitingIds) {
-      await supabase.from('payments').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('order_id', id);
-      await supabase.from('orders').update({ status: 'accepted', updated_at: new Date().toISOString() }).eq('id', id);
+    const waiting = filtered.filter((r) => r.paymentStatus === 'waiting');
+    if (waiting.length === 0) return;
+    for (const r of waiting) {
+      await supabase.from('payments').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('order_id', r.orderId);
+      await supabase.from('orders').update({ status: 'accepted', updated_at: new Date().toISOString() }).eq('id', r.orderId);
+      // 테이블이 비어있으면 사용중으로
+      const { data: tbl } = await supabase.from('tables').select('status').eq('id', r.tableId).single();
+      if (tbl?.status === 'empty') {
+        await supabase.from('tables').update({ status: 'occupied' }).eq('id', r.tableId);
+      }
     }
-    showToast(`${waitingIds.length}건 일괄 입금 확인 완료`);
+    showToast(`${waiting.length}건 일괄 입금 확인 완료`);
     fetchData();
   };
 
@@ -161,7 +205,7 @@ export default function PaymentsPage() {
   };
 
   const statusFilterMap: Record<FilterTab, PaymentRow['paymentStatus'] | null> = {
-    '전체': null, '입금 대기': 'waiting', '입금 확인': 'confirmed', '완료': 'completed',
+    '전체': null, '입금 대기': 'waiting', '입금 확인': 'confirmed', '완료': 'completed', '취소': 'cancelled',
   };
 
   const filtered = rows.filter((r) => {
@@ -186,12 +230,13 @@ export default function PaymentsPage() {
   const pendingAmount = rows.filter((r) => r.paymentStatus === 'waiting').reduce((s, r) => s + r.amount, 0);
 
   const statusBadge = (status: PaymentRow['paymentStatus']) => {
-    const map = {
+    const map: Record<string, { cls: string; label: string }> = {
       waiting: { cls: 'badge badge-amber', label: '입금 대기' },
       confirmed: { cls: 'badge badge-mint', label: '입금 확인' },
       completed: { cls: 'badge badge-neutral', label: '완료' },
+      cancelled: { cls: 'badge badge-crim', label: '취소' },
     };
-    return map[status];
+    return map[status] ?? { cls: 'badge badge-neutral', label: status };
   };
 
   const ageChip = (min: number) => {
@@ -262,7 +307,7 @@ export default function PaymentsPage() {
           style={s.searchInput}
         />
         <div style={s.filterChips}>
-          {(['전체', '입금 대기', '입금 확인', '완료'] as FilterTab[]).map((f) => (
+          {(['전체', '입금 대기', '입금 확인', '완료', '취소'] as FilterTab[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -314,17 +359,25 @@ export default function PaymentsPage() {
                 return (
                   <tr
                     key={r.orderId}
+                    onClick={() => setDetailRow(r)}
                     style={{
                       background: isOverdue
                         ? 'color-mix(in oklab, var(--crim) 5%, white)'
                         : isWarn
                         ? 'color-mix(in oklab, var(--amber) 6%, white)'
+                        : r.paymentStatus === 'cancelled'
+                        ? 'color-mix(in oklab, var(--crim) 3%, white)'
                         : 'transparent',
                       transition: 'background .15s ease',
+                      cursor: 'pointer',
+                      opacity: r.paymentStatus === 'cancelled' ? 0.6 : 1,
                     }}
                   >
                     <td style={s.td}>
-                      <span style={{ fontWeight: 700, fontSize: 13 }} className="numeric">{r.orderNumber}</span>
+                      <div style={{ fontWeight: 700, fontSize: 13 }} className="numeric">{r.orderNumber}</div>
+                      <div className="numeric" style={{ fontSize: 11, color: 'var(--ink-400)', marginTop: 2 }}>
+                        {new Date(r.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                      </div>
                     </td>
                     <td style={s.td}>
                       <span style={s.tableChip}>{r.tableNumber}</span>
@@ -359,43 +412,37 @@ export default function PaymentsPage() {
                         )}
                       </div>
                     </td>
-                    <td style={{ ...s.td, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
-                        <select
-                          value={r.paymentStatus}
-                          onChange={(e) => updatePaymentStatus(r.orderId, e.target.value as PaymentRow['paymentStatus'])}
-                          style={{
-                            padding: '6px 10px',
-                            borderRadius: 'var(--r-sm)',
-                            border: '1px solid var(--border)',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            fontFamily: 'var(--f-sans)',
-                            cursor: 'pointer',
-                            background: r.paymentStatus === 'waiting' ? 'color-mix(in oklab, var(--amber) 12%, white)'
-                              : r.paymentStatus === 'confirmed' ? 'color-mix(in oklab, var(--mint) 12%, white)'
-                              : 'var(--ink-050)',
-                            color: r.paymentStatus === 'waiting' ? '#8a4d00'
-                              : r.paymentStatus === 'confirmed' ? '#0e6b46'
-                              : 'var(--ink-500)',
-                            outline: 'none',
-                          }}
-                        >
-                          <option value="waiting">입금 대기</option>
-                          <option value="confirmed">입금 확인</option>
-                          <option value="completed">완료</option>
-                        </select>
-                        {r.paymentStatus === 'waiting' && (
-                          <button
-                            onClick={() => confirmPayment(r.orderId)}
-                            className="btn btn-sm"
-                            style={{ background: 'var(--mint)', color: '#fff', border: 0, height: 30, padding: '0 10px', fontSize: 12 }}
+                    <td style={{ ...s.td, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      {(() => {
+                        const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
+                          waiting:   { bg: 'color-mix(in oklab, var(--amber) 14%, white)', color: '#8a4d00', border: '1px solid color-mix(in oklab, var(--amber) 25%, white)' },
+                          confirmed: { bg: 'color-mix(in oklab, var(--mint) 14%, white)',  color: '#0e6b46', border: '1px solid color-mix(in oklab, var(--mint) 25%, white)' },
+                          completed: { bg: 'var(--ink-050)',                               color: 'var(--ink-500)', border: '1px solid var(--ink-100)' },
+                          cancelled: { bg: 'color-mix(in oklab, var(--crim) 10%, white)',  color: '#8e0f0f', border: '1px solid color-mix(in oklab, var(--crim) 20%, white)' },
+                        };
+                        const st = statusStyles[r.paymentStatus] ?? statusStyles.waiting;
+                        return (
+                          <select
+                            value={r.paymentStatus}
+                            onChange={(e) => updatePaymentStatus(r.orderId, e.target.value as PaymentRow['paymentStatus'], r.tableId)}
+                            style={{
+                              appearance: 'none', WebkitAppearance: 'none',
+                              padding: '6px 24px 6px 10px',
+                              borderRadius: 'var(--r-pill)', border: st.border,
+                              fontSize: 12, fontWeight: 700, fontFamily: 'var(--f-sans)',
+                              cursor: 'pointer', outline: 'none',
+                              background: `${st.bg} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238A91A5'/%3E%3C/svg%3E") no-repeat right 8px center`,
+                              color: st.color,
+                              transition: 'all .12s ease',
+                            }}
                           >
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />
-                            입금 확인
-                          </button>
-                        )}
-                      </div>
+                            <option value="waiting">입금 대기</option>
+                            <option value="confirmed">입금 확인</option>
+                            <option value="completed">완료</option>
+                            <option value="cancelled">취소</option>
+                          </select>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
@@ -416,6 +463,108 @@ export default function PaymentsPage() {
           </span>
         )}
       </div>
+
+      {/* Order Detail Modal */}
+      {detailRow && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(14,18,32,.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+            animation: 'fadeIn .15s ease',
+          }}
+          onClick={() => setDetailRow(null)}
+        >
+          <div
+            style={{
+              background: '#fff', borderRadius: 'var(--r-lg)', padding: '28px 32px',
+              maxWidth: 440, width: '90%', boxShadow: 'var(--shadow-3)',
+              animation: 'pop .2s ease',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>주문 #{detailRow.orderNumber}</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-400)', marginTop: 2 }}>{detailRow.tableNumber}번 테이블</div>
+              </div>
+              <button onClick={() => setDetailRow(null)} style={{
+                width: 32, height: 32, borderRadius: '50%', border: 0, background: 'var(--ink-050)',
+                cursor: 'pointer', fontSize: 16, color: 'var(--ink-400)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* 주문 시간 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>주문 시간</span>
+                <span className="numeric" style={{ fontWeight: 600 }}>
+                  {new Date(detailRow.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                </span>
+              </div>
+
+              {/* 결제 방식 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>결제 방식</span>
+                <span style={{
+                  fontWeight: 600, padding: '2px 10px', borderRadius: 'var(--r-pill)',
+                  background: detailRow.method === 'toss' ? '#0064FF' : 'var(--ink-100)',
+                  color: detailRow.method === 'toss' ? '#fff' : 'var(--ink-600)',
+                  fontSize: 12,
+                }}>
+                  {detailRow.method === 'toss' ? '토스' : '계좌이체'}
+                </span>
+              </div>
+
+              {/* 이름 · 연락처 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>이름 · 연락처</span>
+                <span style={{ fontWeight: 600 }}>
+                  {detailRow.customerName ?? '-'} · {detailRow.customerPhone ?? '-'}
+                </span>
+              </div>
+
+              {/* 구분선 */}
+              <div style={{ height: 1, background: 'var(--ink-100)' }} />
+
+              {/* 주문 내역 */}
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--ink-400)', fontWeight: 600, marginBottom: 8 }}>주문 내역</div>
+                <div style={{
+                  background: 'var(--ink-050)', borderRadius: 'var(--r-sm)', padding: '12px 14px',
+                  fontSize: 13, lineHeight: 1.7, color: 'var(--ink-700)',
+                }}>
+                  {detailRow.items.split(', ').map((item, i) => (
+                    <div key={i}>{item}</div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 요청사항 */}
+              {detailRow.note && (
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-400)', fontWeight: 600, marginBottom: 6 }}>요청 사항</div>
+                  <div style={{
+                    background: 'color-mix(in oklab, var(--neon) 8%, white)',
+                    border: '1px dashed var(--neon)', borderRadius: 'var(--r-sm)',
+                    padding: '10px 14px', fontSize: 13, color: 'var(--neon-ink)', lineHeight: 1.5,
+                  }}>
+                    {detailRow.note}
+                  </div>
+                </div>
+              )}
+
+              {/* 구분선 */}
+              <div style={{ height: 1, background: 'var(--ink-100)' }} />
+
+              {/* 합계 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-400)' }}>결제 금액</span>
+                <span className="numeric" style={{ fontSize: 22, fontWeight: 800 }}>{detailRow.amount.toLocaleString()}원</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

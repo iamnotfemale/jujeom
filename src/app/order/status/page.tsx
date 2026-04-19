@@ -266,11 +266,19 @@ function OrderStatusPage() {
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
           background: 'var(--surface)', borderTop: '1px solid var(--border)',
           padding: '12px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
+          display: 'flex', gap: 10,
         }}>
           <Link
+            href={`/order?table=${tableNumber}`}
+            className="btn btn-ghost btn-lg"
+            style={{ textDecoration: 'none', flex: 'none', padding: '0 18px' }}
+          >
+            처음으로
+          </Link>
+          <Link
             href={`/order/menu?table=${tableNumber}`}
-            className="btn btn-primary btn-lg btn-block"
-            style={{ textDecoration: 'none' }}
+            className="btn btn-primary btn-lg"
+            style={{ textDecoration: 'none', flex: 1 }}
           >
             추가 주문하기
           </Link>

@@ -403,8 +403,8 @@ function OrderConfirmPage() {
             <input
               type="tel"
               value={customerPhone}
-              onChange={e => setCustomerPhone(e.target.value.replace(/[^\d-]/g, '').slice(0, 13))}
-              placeholder="010-1234-5678"
+              onChange={e => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              placeholder="01012345678"
               style={{
                 width: '100%', border: '1px solid var(--border)',
                 borderRadius: 'var(--r-md)', padding: '10px 12px', fontSize: 14,
