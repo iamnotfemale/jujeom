@@ -7,6 +7,8 @@ CREATE TABLE store_settings (
   store_name TEXT NOT NULL DEFAULT '컴공 주점',
   store_description TEXT DEFAULT '',
   notice TEXT DEFAULT '',
+  welcome_text TEXT DEFAULT '어서 오세요, 즐거운 한 잔 되세요.',
+  welcome_highlight TEXT DEFAULT '즐거운 한 잔',
   bank_name TEXT NOT NULL DEFAULT '카카오뱅크',
   account_number TEXT NOT NULL DEFAULT '',
   account_holder TEXT NOT NULL DEFAULT '',

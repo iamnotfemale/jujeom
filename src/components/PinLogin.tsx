@@ -14,7 +14,18 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
   const [failures, setFailures] = useState(0);
   const [lockUntil, setLockUntil] = useState<number | null>(null);
   const [lockCountdown, setLockCountdown] = useState(0);
+  const [storeName, setStoreName] = useState('주점');
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  // Fetch store name on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.from('store_settings').select('store_name').limit(1).single();
+        if (data?.store_name) setStoreName(data.store_name);
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   // Countdown timer for lockout
   useEffect(() => {
@@ -96,8 +107,8 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     <div style={s.frame}>
       <div style={s.card}>
         {/* Logo */}
-        <div style={s.logo}>컴</div>
-        <div style={s.title}>컴공 주점</div>
+        <div style={s.logo}>{storeName.charAt(0)}</div>
+        <div style={s.title}>{storeName}</div>
         <div style={s.subtitle}>관리자 인증</div>
 
         {/* PIN dots */}

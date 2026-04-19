@@ -12,15 +12,19 @@ function LandingContent() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [storeName, setStoreName] = useState<string>('주점');
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
+  const [welcomeText, setWelcomeText] = useState('어서 오세요, 즐거운 한 잔 되세요.');
+  const [welcomeHighlight, setWelcomeHighlight] = useState('즐거운 한 잔');
   const [orderHistory, setOrderHistory] = useState<{ id: number; order_number: string; created_at: string; status: string; items: string; final_amount: number }[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('store_settings').select('store_name, is_open').limit(1).single();
+      const { data } = await supabase.from('store_settings').select('store_name, is_open, welcome_text, welcome_highlight').limit(1).single();
       if (data) {
         if (data.store_name) setStoreName(data.store_name);
         setIsOpen(data.is_open ?? null);
+        if (data.welcome_text) setWelcomeText(data.welcome_text);
+        if (data.welcome_highlight) setWelcomeHighlight(data.welcome_highlight);
       }
     })();
   }, []);
@@ -219,19 +223,21 @@ function LandingContent() {
               margin: '0 0 0',
             }}
           >
-            어서 오세요,
-            <br />
-            <span style={{ color: 'var(--neon-ink)', position: 'relative' }}>
-              <span
-                style={{
-                  background: 'linear-gradient(transparent 60%, var(--neon) 60%)',
-                  padding: '0 2px',
-                }}
-              >
-                즐거운 한 잔
-              </span>
-            </span>{' '}
-            되세요.
+            {(() => {
+              if (!welcomeHighlight || !welcomeText.includes(welcomeHighlight)) return welcomeText;
+              const parts = welcomeText.split(welcomeHighlight);
+              return (
+                <>
+                  {parts[0]}
+                  <span style={{ color: 'var(--neon-ink)', position: 'relative' }}>
+                    <span style={{ background: 'linear-gradient(transparent 60%, var(--neon) 60%)', padding: '0 2px' }}>
+                      {welcomeHighlight}
+                    </span>
+                  </span>
+                  {parts.slice(1).join(welcomeHighlight)}
+                </>
+              );
+            })()}
           </h1>
         </section>
 

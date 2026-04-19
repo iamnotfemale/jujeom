@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS: StoreSettings = {
   store_name: '',
   store_description: null,
   notice: null,
+  welcome_text: null,
+  welcome_highlight: null,
   bank_name: '',
   account_number: '',
   account_holder: '',
@@ -400,14 +402,59 @@ export default function SettingsPage() {
                 )}
               </div>
               <div style={s.field}>
-                <label style={s.label}>공지사항</label>
-                <textarea
-                  style={s.textarea}
-                  value={settings.notice ?? ''}
-                  onChange={(e) => update('notice', e.target.value || null)}
-                  rows={3}
-                  placeholder="손님에게 보여줄 공지사항"
+                <label style={s.label}>
+                  환영 메시지
+                  <span style={{ fontWeight: 400, color: 'var(--ink-300)', marginLeft: 6 }}>손님 첫 화면에 표시</span>
+                </label>
+                <input
+                  style={s.input}
+                  value={settings.welcome_text ?? ''}
+                  onChange={(e) => update('welcome_text', e.target.value || null)}
+                  maxLength={60}
+                  placeholder="어서 오세요, 즐거운 한 잔 되세요."
                 />
+                <div style={{ fontSize: 11, color: 'var(--ink-300)', marginTop: 4 }}>
+                  예: &quot;어서 오세요, 즐거운 한 잔 되세요.&quot;
+                </div>
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>
+                  강조 텍스트
+                  <span style={{ fontWeight: 400, color: 'var(--ink-300)', marginLeft: 6 }}>노란색으로 강조할 부분</span>
+                </label>
+                <input
+                  style={s.input}
+                  value={settings.welcome_highlight ?? ''}
+                  onChange={(e) => update('welcome_highlight', e.target.value || null)}
+                  maxLength={20}
+                  placeholder="즐거운 한 잔"
+                />
+                {/* 미리보기 */}
+                {(settings.welcome_text ?? '어서 오세요, 즐거운 한 잔 되세요.') && (
+                  <div style={{
+                    marginTop: 10, padding: '16px 20px', borderRadius: 'var(--r-md)',
+                    background: 'var(--ink-900)', textAlign: 'center',
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--ink-400)', marginBottom: 6, fontWeight: 600, letterSpacing: '0.04em' }}>미리보기</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', lineHeight: 1.4 }}>
+                      {(() => {
+                        const text = settings.welcome_text || '어서 오세요, 즐거운 한 잔 되세요.';
+                        const hl = settings.welcome_highlight || '';
+                        if (!hl || !text.includes(hl)) return text;
+                        const parts = text.split(hl);
+                        return (
+                          <>
+                            {parts[0]}
+                            <span style={{ background: 'linear-gradient(transparent 60%, var(--neon) 60%)', color: 'var(--neon-ink)', padding: '0 2px' }}>
+                              {hl}
+                            </span>
+                            {parts.slice(1).join(hl)}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

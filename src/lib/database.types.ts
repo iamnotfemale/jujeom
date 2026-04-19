@@ -75,6 +75,8 @@ export interface StoreSettings {
   store_name: string;
   store_description: string | null;
   notice: string | null;
+  welcome_text: string | null;
+  welcome_highlight: string | null;
   bank_name: string;
   account_number: string;
   account_holder: string;
