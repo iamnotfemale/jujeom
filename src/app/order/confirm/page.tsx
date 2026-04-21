@@ -18,6 +18,32 @@ interface CartItem {
 
 const QUICK_TAGS = ['# 덜 맵게', '# 빨리 부탁드려요', '# 앞접시 추가', '# 물티슈 추가'];
 
+/* ── 토스 딥링크용 은행 코드 매핑 ──
+ * 토스는 한글 은행명이 아닌 영문 코드를 받음.
+ * 공백/별칭/약어를 포함해 매핑. 매칭 실패 시 원본을 그대로 보내 fallback. */
+const BANK_CODE_MAP: Record<string, string> = {
+  '카카오뱅크': 'KAKAO', '카카오': 'KAKAO',
+  '토스뱅크': 'TOSS', '토스': 'TOSS',
+  '케이뱅크': 'KBANK', 'K뱅크': 'KBANK',
+  'KB국민은행': 'KB', '국민은행': 'KB', '국민': 'KB',
+  '신한은행': 'SHINHAN', '신한': 'SHINHAN',
+  '우리은행': 'WOORI', '우리': 'WOORI',
+  '하나은행': 'HANA', '하나': 'HANA', 'KEB하나은행': 'HANA',
+  'IBK기업은행': 'IBK', '기업은행': 'IBK', '기업': 'IBK',
+  'NH농협은행': 'NH', '농협은행': 'NH', '농협': 'NH',
+  'SC제일은행': 'SC', '제일은행': 'SC',
+  '한국씨티은행': 'CITI', '씨티은행': 'CITI',
+  '부산은행': 'BUSAN', '대구은행': 'DAEGU', '광주은행': 'KWANGJU',
+  '전북은행': 'JEONBUK', '경남은행': 'KYONGNAM', '제주은행': 'JEJU',
+  '새마을금고': 'SAEMAUL', '신협': 'SHINHYUP', '우체국': 'POST',
+  '산업은행': 'KDB', '수협': 'SUHYUP',
+};
+
+function resolveBankCode(name: string): string {
+  const trimmed = name.trim();
+  return BANK_CODE_MAP[trimmed] ?? trimmed;
+}
+
 /* ── Component ──────────────────────────────── */
 export default function OrderConfirmPageWrapper() {
   return (
@@ -180,9 +206,30 @@ function OrderConfirmPage() {
       });
 
       if (error) {
-        // Supabase RPC에서 RAISE EXCEPTION한 메시지가 error.message에 들어있음
         console.error('create_order_atomic error:', error);
-        alert(error.message || '주문 실패. 다시 시도해 주세요.');
+        // RAISE EXCEPTION 'code' USING HINT = '사용자 친화 메시지' 형태로 저장됨
+        // error.hint에 한글 메시지, error.message에 영문 코드
+        const err = error as { message?: string; hint?: string; details?: string };
+        const codeToMsg: Record<string, string> = {
+          table_not_found: 'QR을 다시 스캔해주세요. 테이블 정보가 올바르지 않습니다.',
+          invalid_table_kind: '이 자리는 주문을 받지 않는 위치입니다.',
+          store_closed: '영업이 종료되었습니다.',
+          store_paused: '현재 주문을 일시 중단 중입니다.',
+          store_not_configured: '주점 설정이 완료되지 않았습니다.',
+          empty_cart: '장바구니가 비어있습니다.',
+          empty_customer_name: '입금자명을 입력해 주세요.',
+          invalid_method: '결제 수단이 올바르지 않습니다.',
+          invalid_items: '주문 형식이 올바르지 않습니다.',
+          menu_not_found: '존재하지 않는 메뉴가 포함되어 있습니다.',
+          menu_sold_out: '품절된 메뉴가 있습니다. 장바구니를 확인해 주세요.',
+          insufficient_stock: '재고가 부족한 메뉴가 있습니다.',
+        };
+        const friendly =
+          codeToMsg[err.message ?? ''] ||
+          err.hint ||
+          err.message ||
+          '주문 실패. 다시 시도해 주세요.';
+        alert(friendly);
         setSubmitting(false);
         return;
       }
@@ -204,7 +251,10 @@ function OrderConfirmPage() {
       if (method === 'toss') {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
-          window.location.href = `supertoss://send?bank=${encodeURIComponent(bankName)}&accountNo=${accountNo}&amount=${row.total}&origin=${encodeURIComponent(storeName)}`;
+          // 토스는 은행 코드(영문) + 숫자만 있는 계좌번호를 기대
+          const bankCode = resolveBankCode(bankName);
+          const cleanAccountNo = accountNo.replace(/\D/g, ''); // 하이픈·공백 제거
+          window.location.href = `supertoss://send?bank=${encodeURIComponent(bankCode)}&accountNo=${cleanAccountNo}&amount=${row.total}&origin=${encodeURIComponent(storeName)}`;
         }
         // 데스크톱: 그냥 redirect
       }
