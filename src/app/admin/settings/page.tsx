@@ -246,7 +246,10 @@ export default function SettingsPage() {
     // 다른 탭(결제 내역, 주방 KDS)에 초기화 알림
     try {
       const ch = supabase.channel('data-reset');
-      await ch.subscribe();
+      await new Promise<void>((resolve) => {
+        ch.subscribe((status) => { if (status === 'SUBSCRIBED') resolve(); });
+        setTimeout(() => resolve(), 2000);
+      });
       await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
       supabase.removeChannel(ch);
     } catch (e) { console.error('broadcast error:', e); }
@@ -256,7 +259,10 @@ export default function SettingsPage() {
     await supabase.from('tables').update({ status: 'empty' }).neq('id', 0);
     try {
       const ch = supabase.channel('data-reset');
-      await ch.subscribe();
+      await new Promise<void>((resolve) => {
+        ch.subscribe((status) => { if (status === 'SUBSCRIBED') resolve(); });
+        setTimeout(() => resolve(), 2000);
+      });
       await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
       supabase.removeChannel(ch);
     } catch (e) { console.error('broadcast error:', e); }
