@@ -2,11 +2,12 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Menu } from '@/lib/database.types';
+import ClosedGate from '@/components/ClosedGate';
 
-type CartItem = { menu: Menu; quantity: number };
+type CartItem = { menu: Menu; quantity: number; options?: string | null };
 
 const CATEGORIES = ['전체', '안주', '주류', '음료'] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -30,6 +31,22 @@ function thumbColors(category: string) {
   }
 }
 
+function parseOptions(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+function cartKey(item: CartItem) {
+  return `${item.menu.id}:${item.options ?? ''}`;
+}
+
+function cartStorageKey(table: string) {
+  return `cart:table:${table}`;
+}
+
 /* ── main ─────────────────────────────────── */
 
 function MenuContent() {
@@ -41,6 +58,16 @@ function MenuContent() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category>('전체');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
+
+  /* option modal state */
+  const [optionModalMenu, setOptionModalMenu] = useState<Menu | null>(null);
+  const [selectedOption, setSelectedOption] = useState<string>('');
+
+  /* bottom sheet state */
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const dragStartY = useRef<number | null>(null);
+  const dragDelta = useRef<number>(0);
 
   /* fetch menus */
   useEffect(() => {
@@ -53,6 +80,34 @@ function MenuContent() {
       setLoading(false);
     })();
   }, []);
+
+  /* hydrate cart from localStorage on mount */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(cartStorageKey(table));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setCart(parsed);
+      }
+    } catch {
+      /* ignore */
+    }
+    setCartHydrated(true);
+  }, [table]);
+
+  /* persist cart to localStorage when changed (after hydration) */
+  useEffect(() => {
+    if (!cartHydrated) return;
+    try {
+      if (cart.length === 0) {
+        localStorage.removeItem(cartStorageKey(table));
+      } else {
+        localStorage.setItem(cartStorageKey(table), JSON.stringify(cart));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [cart, cartHydrated, table]);
 
   /* category counts */
   const counts = useMemo(() => {
@@ -72,7 +127,7 @@ function MenuContent() {
     [menus, activeCategory],
   );
 
-  /* popular items (top 3 by sort_order or just first 3 with tag) */
+  /* popular items */
   const popular = useMemo(
     () =>
       menus
@@ -82,16 +137,51 @@ function MenuContent() {
   );
 
   /* cart helpers */
-  const addToCart = useCallback((menu: Menu) => {
+  const addCartItem = useCallback((menu: Menu, options?: string | null) => {
     setCart((prev) => {
-      const idx = prev.findIndex((c) => c.menu.id === menu.id);
+      const key = `${menu.id}:${options ?? ''}`;
+      const idx = prev.findIndex((c) => `${c.menu.id}:${c.options ?? ''}` === key);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { menu, quantity: 1 }];
+      return [...prev, { menu, quantity: 1, options: options ?? null }];
     });
+  }, []);
+
+  const handleMenuClick = useCallback(
+    (menu: Menu) => {
+      const opts = parseOptions(menu.options);
+      if (opts.length > 0) {
+        setSelectedOption(opts[0]);
+        setOptionModalMenu(menu);
+      } else {
+        addCartItem(menu, null);
+      }
+    },
+    [addCartItem],
+  );
+
+  const confirmOptionAdd = useCallback(() => {
+    if (!optionModalMenu) return;
+    addCartItem(optionModalMenu, selectedOption || null);
+    setOptionModalMenu(null);
+    setSelectedOption('');
+  }, [addCartItem, optionModalMenu, selectedOption]);
+
+  const updateQty = useCallback((key: string, delta: number) => {
+    setCart((prev) =>
+      prev
+        .map((c) =>
+          cartKey(c) === key ? { ...c, quantity: c.quantity + delta } : c,
+        )
+        .filter((c) => c.quantity > 0),
+    );
+  }, []);
+
+  const removeCartItem = useCallback((key: string) => {
+    setCart((prev) => prev.filter((c) => cartKey(c) !== key));
   }, []);
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
@@ -100,11 +190,30 @@ function MenuContent() {
     0,
   );
 
-  /* navigate to confirm with cart data in sessionStorage */
+  /* navigate to confirm (cart is already in localStorage) */
   const goToConfirm = () => {
-    sessionStorage.setItem('cart', JSON.stringify(cart));
     router.push(`/order/confirm?table=${table}`);
   };
+
+  /* drag handlers for bottom sheet */
+  const onHandleTouchStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0].clientY;
+    dragDelta.current = 0;
+  };
+  const onHandleTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current == null) return;
+    dragDelta.current = e.touches[0].clientY - dragStartY.current;
+  };
+  const onHandleTouchEnd = () => {
+    if (dragStartY.current == null) return;
+    const d = dragDelta.current;
+    if (d < -40) setSheetExpanded(true);
+    else if (d > 40) setSheetExpanded(false);
+    dragStartY.current = null;
+    dragDelta.current = 0;
+  };
+
+  const showSheet = cartCount > 0;
 
   return (
     <div
@@ -240,7 +349,7 @@ function MenuContent() {
           width: '100%',
           maxWidth: 440,
           padding: '0 20px',
-          paddingBottom: cartCount > 0 ? 100 : 32,
+          paddingBottom: showSheet ? 120 : 32,
           flex: 1,
         }}
       >
@@ -373,6 +482,7 @@ function MenuContent() {
                 {filtered.map((item) => {
                   const soldOut = item.is_sold_out;
                   const colors = thumbColors(item.category);
+                  const hasOptions = parseOptions(item.options).length > 0;
                   return (
                     <div
                       key={item.id}
@@ -490,9 +600,9 @@ function MenuContent() {
                                 fontSize: 12,
                                 borderRadius: 'var(--r-sm)',
                               }}
-                              onClick={() => addToCart(item)}
+                              onClick={() => handleMenuClick(item)}
                             >
-                              담기
+                              {hasOptions ? '옵션 선택' : '담기'}
                             </button>
                           )}
                         </div>
@@ -519,82 +629,534 @@ function MenuContent() {
         )}
       </div>
 
-      {/* Floating cart bar */}
-      {cartCount > 0 && (
+      {/* ── Option selection modal ───────────── */}
+      {optionModalMenu && (
         <div
+          onClick={() => setOptionModalMenu(null)}
           style={{
             position: 'fixed',
-            bottom: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 'calc(100% - 40px)',
-            maxWidth: 400,
-            zIndex: 30,
-            animation: 'pop .25s ease',
+            inset: 0,
+            zIndex: 80,
+            background: 'rgba(14,18,32,0.55)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            animation: 'fadeIn .2s ease',
           }}
         >
           <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'var(--ink-900)',
-              borderRadius: 'var(--r-xl)',
+              width: '100%',
+              maxWidth: 440,
+              background: 'var(--paper)',
+              borderTopLeftRadius: 'var(--r-xl)',
+              borderTopRightRadius: 'var(--r-xl)',
+              padding: '18px 20px 24px',
               boxShadow: 'var(--shadow-2)',
-              padding: '12px 14px 12px 18px',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
+              flexDirection: 'column',
+              gap: 14,
+              maxHeight: '80vh',
+              overflowY: 'auto',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span
+            {/* handle */}
+            <div
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                background: 'var(--ink-200)',
+                margin: '0 auto 6px',
+              }}
+            />
+            <div>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: 'var(--ink-900)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {optionModalMenu.name}
+              </div>
+              {optionModalMenu.description && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--ink-500)',
+                    marginTop: 4,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {optionModalMenu.description}
+                </div>
+              )}
+              <div
                 className="numeric"
                 style={{
-                  background: 'var(--ink-700)',
-                  color: '#fff',
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: 'var(--ink-900)',
+                  marginTop: 8,
+                }}
+              >
+                {formatPrice(optionModalMenu.price)}
+              </div>
+            </div>
+
+            <div style={{ height: 1, background: 'var(--ink-100)' }} />
+
+            <div>
+              <div
+                style={{
                   fontSize: 13,
                   fontWeight: 700,
-                  flexShrink: 0,
+                  color: 'var(--ink-700)',
+                  marginBottom: 10,
+                  letterSpacing: '-0.01em',
                 }}
               >
-                {cartCount}
-              </span>
-              <span
-                className="numeric"
-                style={{
-                  color: '#fff',
-                  fontSize: 15,
-                  fontWeight: 600,
-                }}
-              >
-                {formatPrice(cartTotal)}
-              </span>
+                옵션 선택 <span style={{ color: 'var(--coral)' }}>*</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {parseOptions(optionModalMenu.options).map((opt) => {
+                  const active = opt === selectedOption;
+                  return (
+                    <label
+                      key={opt}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '12px 14px',
+                        borderRadius: 'var(--r-md)',
+                        border: active
+                          ? '1.5px solid var(--ink-900)'
+                          : '1px solid var(--ink-100)',
+                        background: active ? 'var(--ink-050)' : 'var(--white)',
+                        cursor: 'pointer',
+                        transition: 'all .15s',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="menu-option"
+                        value={opt}
+                        checked={active}
+                        onChange={() => setSelectedOption(opt)}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          accentColor: 'var(--ink-900)',
+                          cursor: 'pointer',
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 14,
+                          fontWeight: active ? 700 : 500,
+                          color: 'var(--ink-900)',
+                        }}
+                      >
+                        {opt}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <button
-              onClick={goToConfirm}
-              style={{
-                appearance: 'none',
-                border: 'none',
-                background: 'var(--neon)',
-                color: 'var(--neon-ink)',
-                fontWeight: 700,
-                fontSize: 14,
-                padding: '8px 18px',
-                borderRadius: 'var(--r-pill)',
-                cursor: 'pointer',
-                fontFamily: 'var(--f-sans)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              주문하기 →
-            </button>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <button
+                onClick={() => setOptionModalMenu(null)}
+                style={{
+                  flex: 1,
+                  appearance: 'none',
+                  border: '1px solid var(--border)',
+                  background: 'var(--white)',
+                  color: 'var(--ink-700)',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  padding: '12px 14px',
+                  borderRadius: 'var(--r-md)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--f-sans)',
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmOptionAdd}
+                disabled={!selectedOption}
+                style={{
+                  flex: 2,
+                  appearance: 'none',
+                  border: 'none',
+                  background: 'var(--neon)',
+                  color: 'var(--neon-ink)',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  padding: '12px 14px',
+                  borderRadius: 'var(--r-md)',
+                  cursor: selectedOption ? 'pointer' : 'not-allowed',
+                  opacity: selectedOption ? 1 : 0.5,
+                  fontFamily: 'var(--f-sans)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                장바구니 담기
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* ── Cart bottom sheet ────────────────── */}
+      {showSheet && (
+        <>
+          {/* backdrop when expanded */}
+          {sheetExpanded && (
+            <div
+              onClick={() => setSheetExpanded(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 40,
+                background: 'rgba(14,18,32,0.35)',
+                animation: 'fadeIn .2s ease',
+              }}
+            />
+          )}
+
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 50,
+              display: 'flex',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                maxWidth: 440,
+                background: 'var(--ink-900)',
+                borderTopLeftRadius: 'var(--r-xl)',
+                borderTopRightRadius: 'var(--r-xl)',
+                boxShadow: 'var(--shadow-2)',
+                pointerEvents: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: sheetExpanded ? '75vh' : 'auto',
+                transition: 'max-height .25s ease',
+                overflow: 'hidden',
+              }}
+            >
+              {/* handle / toggle */}
+              <div
+                onClick={() => setSheetExpanded((v) => !v)}
+                onTouchStart={onHandleTouchStart}
+                onTouchMove={onHandleTouchMove}
+                onTouchEnd={onHandleTouchEnd}
+                style={{
+                  padding: '10px 0 6px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  touchAction: 'none',
+                }}
+              >
+                <span
+                  style={{
+                    width: 44,
+                    height: 4,
+                    borderRadius: 2,
+                    background: 'var(--ink-600)',
+                  }}
+                />
+              </div>
+
+              {/* expanded list */}
+              {sheetExpanded && (
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '4px 16px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '4px 0 8px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: '#fff',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      장바구니
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--ink-400)',
+                      }}
+                    >
+                      {cart.length}개 메뉴 · {cartCount}개 상품
+                    </span>
+                  </div>
+
+                  {cart.map((c) => {
+                    const k = cartKey(c);
+                    const colors = thumbColors(c.menu.category);
+                    return (
+                      <div
+                        key={k}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: 10,
+                          background: 'var(--ink-700)',
+                          borderRadius: 'var(--r-md)',
+                        }}
+                      >
+                        {/* thumbnail */}
+                        <div
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 'var(--r-sm)',
+                            flexShrink: 0,
+                            background: c.menu.image_url
+                              ? `url(${c.menu.image_url}) center/cover`
+                              : `repeating-linear-gradient(45deg, ${colors.b} 0 6px, ${colors.a}44 6px 12px)`,
+                          }}
+                        />
+                        {/* info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: '#fff',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {c.menu.name}
+                          </div>
+                          {c.options && (
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: 'var(--ink-400)',
+                                marginTop: 1,
+                              }}
+                            >
+                              {c.options}
+                            </div>
+                          )}
+                          <div
+                            className="numeric"
+                            style={{
+                              fontSize: 12,
+                              color: 'var(--neon)',
+                              fontWeight: 700,
+                              marginTop: 2,
+                            }}
+                          >
+                            {formatPrice(c.menu.price * c.quantity)}
+                          </div>
+                        </div>
+                        {/* qty */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <button
+                            onClick={() => updateQty(k, -1)}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 'var(--r-sm)',
+                              border: '1px solid var(--ink-600)',
+                              background: 'var(--ink-900)',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: 14,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            −
+                          </button>
+                          <span
+                            className="numeric"
+                            style={{
+                              width: 20,
+                              textAlign: 'center',
+                              color: '#fff',
+                              fontWeight: 700,
+                              fontSize: 13,
+                            }}
+                          >
+                            {c.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQty(k, 1)}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 'var(--r-sm)',
+                              border: '1px solid var(--ink-600)',
+                              background: 'var(--ink-900)',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: 14,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => removeCartItem(k)}
+                            aria-label="삭제"
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 'var(--r-sm)',
+                              border: 'none',
+                              background: 'transparent',
+                              color: 'var(--coral)',
+                              cursor: 'pointer',
+                              fontSize: 14,
+                              marginLeft: 2,
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* sticky CTA */}
+              <div
+                style={{
+                  padding: '10px 14px 14px',
+                  paddingBottom:
+                    'max(14px, env(safe-area-inset-bottom))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  borderTop: sheetExpanded
+                    ? '1px solid var(--ink-700)'
+                    : 'none',
+                  background: 'var(--ink-900)',
+                }}
+              >
+                <div
+                  onClick={() => setSheetExpanded((v) => !v)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    cursor: 'pointer',
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    className="numeric"
+                    style={{
+                      background: 'var(--ink-700)',
+                      color: '#fff',
+                      minWidth: 28,
+                      height: 28,
+                      padding: '0 8px',
+                      borderRadius: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {cartCount}
+                  </span>
+                  <span
+                    className="numeric"
+                    style={{
+                      color: '#fff',
+                      fontSize: 15,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {formatPrice(cartTotal)}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--ink-400)',
+                      marginLeft: 4,
+                    }}
+                  >
+                    {sheetExpanded ? '접기 ▼' : '펼쳐보기 ▲'}
+                  </span>
+                </div>
+                <button
+                  onClick={goToConfirm}
+                  style={{
+                    appearance: 'none',
+                    border: 'none',
+                    background: 'var(--neon)',
+                    color: 'var(--neon-ink)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    padding: '10px 18px',
+                    borderRadius: 'var(--r-pill)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--f-sans)',
+                    letterSpacing: '-0.01em',
+                    flexShrink: 0,
+                  }}
+                >
+                  주문하기 →
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -617,7 +1179,9 @@ export default function MenuPage() {
         </div>
       }
     >
-      <MenuContent />
+      <ClosedGate>
+        <MenuContent />
+      </ClosedGate>
     </Suspense>
   );
 }

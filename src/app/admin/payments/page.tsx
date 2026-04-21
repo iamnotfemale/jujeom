@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { adminApi } from '@/lib/admin-api';
 import type { Order, Payment, OrderItem } from '@/lib/database.types';
 
 interface PaymentRow {
@@ -124,43 +125,14 @@ export default function PaymentsPage() {
   }, []);
 
   const updatePaymentStatus = async (orderId: number, newStatus: PaymentRow['paymentStatus'], tableId?: number) => {
-    const paymentUpdate: Record<string, unknown> = { status: newStatus };
-    if (newStatus === 'confirmed') paymentUpdate.confirmed_at = new Date().toISOString();
-    await supabase.from('payments').update(paymentUpdate).eq('order_id', orderId);
-
-    let orderStatus = 'pending';
-    if (newStatus === 'confirmed') orderStatus = 'accepted';
-    else if (newStatus === 'completed') orderStatus = 'served';
-    else if (newStatus === 'cancelled') orderStatus = 'cancelled';
-    await supabase.from('orders').update({ status: orderStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
-
-    // 입금 확인 시 해당 테이블이 비어있으면 사용중으로 변경
-    if (newStatus === 'confirmed' && tableId) {
-      const { data: tbl } = await supabase.from('tables').select('status').eq('id', tableId).single();
-      if (tbl?.status === 'empty') {
-        await supabase.from('tables').update({ status: 'occupied' }).eq('id', tableId);
-      }
+    const { error } = await adminApi('/api/admin/payment/status', {
+      method: 'POST',
+      body: { orderId, newStatus, tableId },
+    });
+    if (error) {
+      showToast('상태 변경 실패');
+      return;
     }
-
-    // 취소 시 재고 원복
-    if (newStatus === 'cancelled') {
-      try {
-        const { data: orderItems } = await supabase
-          .from('order_items')
-          .select('menu_id, quantity')
-          .eq('order_id', orderId);
-        for (const item of orderItems ?? []) {
-          const { data: menu } = await supabase.from('menus').select('stock').eq('id', item.menu_id).single();
-          if (menu) {
-            await supabase.from('menus').update({
-              stock: menu.stock + item.quantity,
-              is_sold_out: false,
-            }).eq('id', item.menu_id);
-          }
-        }
-      } catch (e) { console.error('재고 원복 실패:', e); }
-    }
-
     showToast(newStatus === 'cancelled' ? '주문 취소 · 재고 원복 완료' : '상태 변경 완료');
     fetchData();
   };
@@ -173,13 +145,10 @@ export default function PaymentsPage() {
     const waiting = filtered.filter((r) => r.paymentStatus === 'waiting');
     if (waiting.length === 0) return;
     for (const r of waiting) {
-      await supabase.from('payments').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('order_id', r.orderId);
-      await supabase.from('orders').update({ status: 'accepted', updated_at: new Date().toISOString() }).eq('id', r.orderId);
-      // 테이블이 비어있으면 사용중으로
-      const { data: tbl } = await supabase.from('tables').select('status').eq('id', r.tableId).single();
-      if (tbl?.status === 'empty') {
-        await supabase.from('tables').update({ status: 'occupied' }).eq('id', r.tableId);
-      }
+      await adminApi('/api/admin/payment/status', {
+        method: 'POST',
+        body: { orderId: r.orderId, newStatus: 'confirmed', tableId: r.tableId },
+      });
     }
     showToast(`${waiting.length}건 일괄 입금 확인 완료`);
     fetchData();
@@ -226,7 +195,9 @@ export default function PaymentsPage() {
   const totalOrders = rows.length;
   const confirmedCount = rows.filter((r) => r.paymentStatus === 'confirmed').length;
   const waitingCount = rows.filter((r) => r.paymentStatus === 'waiting').length;
-  const totalSales = rows.filter((r) => r.paymentStatus !== 'waiting').reduce((s, r) => s + r.amount, 0);
+  const totalSales = rows
+    .filter((r) => r.paymentStatus === 'confirmed' || r.paymentStatus === 'completed')
+    .reduce((s, r) => s + r.amount, 0);
   const pendingAmount = rows.filter((r) => r.paymentStatus === 'waiting').reduce((s, r) => s + r.amount, 0);
 
   const statusBadge = (status: PaymentRow['paymentStatus']) => {

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { adminApi } from '@/lib/admin-api';
 import { useAdminStoreName } from '../layout';
 import type { Order, Table, Payment, StoreSettings, OrderItem } from '@/lib/database.types';
 
@@ -70,7 +71,8 @@ export default function DashboardPage() {
 
       const confirmed = payments.filter((p) => p.status === 'confirmed' || p.status === 'completed');
       const pending = payments.filter((p) => p.status === 'waiting');
-      const totalSales = confirmed.reduce((s, p) => s + p.amount, 0);
+      // 매출 합계: confirmed/completed만 포함 (waiting, cancelled 제외)
+      const totalSales = confirmed.reduce((s, p) => s + (Number.isFinite(p.amount) ? p.amount : 0), 0);
 
       setStats({
         totalOrders: todayOrders.length,
@@ -143,7 +145,11 @@ export default function DashboardPage() {
   const toggleOpen = async () => {
     const next = !isOpen;
     setIsOpen(next);
-    await (supabase.from('store_settings') as any).update({ is_open: next }).eq('id', 1);
+    const { error } = await adminApi('/api/admin/settings', { method: 'PATCH', body: { is_open: next } });
+    if (error) {
+      // 롤백
+      setIsOpen(!next);
+    }
   };
 
   const todayStr = new Date().toLocaleDateString('ko-KR', {
@@ -168,10 +174,13 @@ export default function DashboardPage() {
     }
   };
 
-  // Sales breakdown for donut
-  const mintPct = stats.totalOrders > 0 ? Math.round((stats.confirmedPayments / stats.totalOrders) * 100) : 62;
-  const amberPct = stats.totalOrders > 0 ? Math.round((stats.pendingPayments / stats.totalOrders) * 100) : 16;
-  const restPct = 100 - mintPct - amberPct;
+  // Sales breakdown for donut (0으로 나눔 방지)
+  const hasData = stats.totalOrders > 0;
+  const safeMintPct = hasData ? Math.round((stats.confirmedPayments / stats.totalOrders) * 100) : 0;
+  const safeAmberPct = hasData ? Math.round((stats.pendingPayments / stats.totalOrders) * 100) : 0;
+  const mintPct = Number.isFinite(safeMintPct) ? Math.max(0, Math.min(100, safeMintPct)) : 0;
+  const amberPct = Number.isFinite(safeAmberPct) ? Math.max(0, Math.min(100, safeAmberPct)) : 0;
+  const restPct = Math.max(0, 100 - mintPct - amberPct);
 
   if (loading) {
     return (
@@ -295,35 +304,46 @@ export default function DashboardPage() {
             <div style={s.panelHeader}>
               <h2 style={s.panelTitle}>매출 현황</h2>
             </div>
-            <div style={s.donutWrap}>
-              <div
-                style={{
-                  ...s.donut,
-                  background: `conic-gradient(var(--mint) 0% ${mintPct}%, var(--amber) ${mintPct}% ${mintPct + amberPct}%, var(--ink-200) ${mintPct + amberPct}% 100%)`,
-                }}
-              >
-                <div style={s.donutCenter}>
-                  <div style={{ fontSize: 18, fontWeight: 700 }} className="numeric">
-                    {stats.totalSales.toLocaleString()}
+            {hasData && stats.totalSales > 0 ? (
+              <div style={s.donutWrap}>
+                <div
+                  style={{
+                    ...s.donut,
+                    background: `conic-gradient(var(--mint) 0% ${mintPct}%, var(--amber) ${mintPct}% ${mintPct + amberPct}%, var(--ink-200) ${mintPct + amberPct}% 100%)`,
+                  }}
+                >
+                  <div style={s.donutCenter}>
+                    <div style={{ fontSize: 18, fontWeight: 700 }} className="numeric">
+                      {stats.totalSales.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>원</div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>원</div>
+                </div>
+                <div style={s.donutLegend}>
+                  <div style={s.legendItem}>
+                    <span style={{ ...s.legendDot, background: 'var(--mint)' }} />
+                    입금 확인 {mintPct}%
+                  </div>
+                  <div style={s.legendItem}>
+                    <span style={{ ...s.legendDot, background: 'var(--amber)' }} />
+                    입금 대기 {amberPct}%
+                  </div>
+                  <div style={s.legendItem}>
+                    <span style={{ ...s.legendDot, background: 'var(--ink-200)' }} />
+                    기타 {restPct}%
+                  </div>
                 </div>
               </div>
-              <div style={s.donutLegend}>
-                <div style={s.legendItem}>
-                  <span style={{ ...s.legendDot, background: 'var(--mint)' }} />
-                  입금 확인 {mintPct}%
+            ) : (
+              <div style={s.donutEmpty}>
+                <div style={{ fontSize: 13, color: 'var(--ink-400)', fontWeight: 500, textAlign: 'center' }}>
+                  아직 주문이 없습니다
                 </div>
-                <div style={s.legendItem}>
-                  <span style={{ ...s.legendDot, background: 'var(--amber)' }} />
-                  입금 대기 {amberPct}%
-                </div>
-                <div style={s.legendItem}>
-                  <span style={{ ...s.legendDot, background: 'var(--ink-200)' }} />
-                  기타 {restPct}%
+                <div style={{ fontSize: 11, color: 'var(--ink-300)', marginTop: 6, textAlign: 'center' }}>
+                  첫 주문이 들어오면 매출 현황이 표시됩니다
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Recent orders */}
@@ -525,6 +545,14 @@ const s: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 24,
     padding: '20px 18px',
+  },
+  donutEmpty: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 18px',
+    minHeight: 160,
   },
   donut: {
     width: 120,

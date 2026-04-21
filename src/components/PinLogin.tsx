@@ -52,26 +52,41 @@ export default function PinLogin({ onSuccess }: PinLoginProps) {
     setError('');
 
     try {
-      const { data } = await supabase
-        .from('store_settings')
-        .select('pin')
-        .limit(1)
-        .single();
+      const res = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+        credentials: 'include',
+      });
 
-      if (data && data.pin === pin) {
+      if (res.ok) {
+        // Keep sessionStorage for legacy UI checks until pages are migrated.
         sessionStorage.setItem('admin_auth', 'true');
         onSuccess();
-      } else {
-        const newFailures = failures + 1;
-        setFailures(newFailures);
+        return;
+      }
+
+      if (res.status === 429) {
+        const body = (await res.json().catch(() => ({}))) as { remainingMs?: number };
+        const remaining = Math.max(10, Math.ceil((body.remainingMs ?? 600_000) / 1000));
+        setLockUntil(Date.now() + remaining * 1000);
+        setFailures(0);
         setPin('');
-        if (newFailures >= 3) {
-          setLockUntil(Date.now() + 10000);
-          setFailures(0);
-          setError('입력 횟수 초과. 10초 후 다시 시도해주세요.');
-        } else {
-          setError('PIN이 올바르지 않습니다');
-        }
+        setError(`입력 횟수 초과. ${Math.ceil(remaining / 60)}분 후 다시 시도해주세요.`);
+        return;
+      }
+
+      // 401 or other failure
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      const newFailures = failures + 1;
+      setFailures(newFailures);
+      setPin('');
+      if (body.error === 'locked' || newFailures >= 3) {
+        setLockUntil(Date.now() + 10000);
+        setFailures(0);
+        setError('입력 횟수 초과. 10초 후 다시 시도해주세요.');
+      } else {
+        setError('PIN이 올바르지 않습니다');
       }
     } catch {
       setError('서버 연결 오류');

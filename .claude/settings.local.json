@@ -11,7 +11,19 @@
       "Bash(npm install:*)",
       "Bash(npx next:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "mcp__notion__notion-search",
+      "mcp__notion__notion-create-pages",
+      "mcp__notion__notion-move-pages",
+      "Bash(npx eslint *)",
+      "Bash(git stash *)",
+      "Bash(cat eslint.config.mjs)",
+      "Bash(cat .eslintrc.json)",
+      "Bash(cat eslint.config.js)",
+      "Bash(node *)"
     ]
   }
 }

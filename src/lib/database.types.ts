@@ -2,10 +2,16 @@ export type OrderStatus = 'pending' | 'accepted' | 'cooking' | 'ready' | 'served
 export type PaymentStatus = 'waiting' | 'confirmed' | 'completed';
 export type TableStatus = 'empty' | 'occupied' | 'payment_pending';
 
+export type TableKind = 'table' | 'restroom' | 'kitchen';
+
 export interface Table {
   id: number;
   number: number;
   shape: 'square-2' | 'square-4';
+  kind: TableKind;
+  width: number;
+  height: number;
+  capacity: number;
   position_x: number;
   position_y: number;
   status: TableStatus;

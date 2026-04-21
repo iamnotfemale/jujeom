@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { adminApi } from '@/lib/admin-api';
 import { uploadImage, getAssetPublicUrl } from '@/lib/storage';
 import type { StoreSettings } from '@/lib/database.types';
 
@@ -128,7 +129,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       // Handle PIN update separately if new PIN is provided
-      let updatedSettings = { ...settings };
+      let pinChanged = false;
       if (newPin && newPin === confirmPin) {
         if (currentPin !== settings.pin) {
           setPinError('현재 PIN이 올바르지 않습니다');
@@ -140,20 +141,36 @@ export default function SettingsPage() {
           setSaving(false);
           return;
         }
-        updatedSettings = { ...updatedSettings, pin: newPin };
+        pinChanged = true;
       }
 
-      const { id, ...rest } = updatedSettings;
-      const { error } = await supabase
-        .from('store_settings')
-        .update(rest)
-        .eq('id', id);
-
+      // store_settings 업데이트 (pin 제외)
+      const { id: _id, pin: _pin, ...rest } = settings;
+      void _id; void _pin;
+      const { error } = await adminApi('/api/admin/settings', {
+        method: 'PATCH',
+        body: rest,
+      });
       if (error) {
         console.error('Save error:', error);
+        setSaving(false);
         return;
       }
 
+      // PIN 변경 (별도 엔드포인트)
+      if (pinChanged) {
+        const { error: pinErr } = await adminApi('/api/admin/auth/set-pin', {
+          method: 'POST',
+          body: { newPin },
+        });
+        if (pinErr) {
+          setPinError('PIN 변경 실패');
+          setSaving(false);
+          return;
+        }
+      }
+
+      const updatedSettings = pinChanged ? { ...settings, pin: newPin } : settings;
       setSettings(updatedSettings);
       setOriginal(updatedSettings);
       setCurrentPin('');
@@ -178,7 +195,7 @@ export default function SettingsPage() {
     setPinError(null);
   };
 
-  const handlePinChange = () => {
+  const handlePinChange = async () => {
     setPinError(null);
     if (currentPin !== settings.pin) {
       setPinError('현재 PIN이 올바르지 않습니다');
@@ -192,7 +209,16 @@ export default function SettingsPage() {
       setPinError('새 PIN이 일치하지 않습니다');
       return;
     }
+    const { error } = await adminApi('/api/admin/auth/set-pin', {
+      method: 'POST',
+      body: { newPin },
+    });
+    if (error) {
+      setPinError('PIN 변경 실패');
+      return;
+    }
     update('pin', newPin);
+    setOriginal((prev) => ({ ...prev, pin: newPin }));
     setCurrentPin('');
     setNewPin('');
     setConfirmPin('');
@@ -235,15 +261,7 @@ export default function SettingsPage() {
     toastTimer.current = setTimeout(() => setToast(null), 2500);
   };
 
-  const resetPayments = async () => {
-    // FK 순서: payments → order_items → orders
-    const r1 = await supabase.from('payments').delete().neq('id', 0);
-    console.log('payments delete:', r1.error ?? 'ok', r1.count);
-    const r2 = await supabase.from('order_items').delete().neq('id', 0);
-    console.log('order_items delete:', r2.error ?? 'ok', r2.count);
-    const r3 = await supabase.from('orders').delete().neq('id', 0);
-    console.log('orders delete:', r3.error ?? 'ok', r3.count);
-    // 다른 탭(결제 내역, 주방 KDS)에 초기화 알림
+  const broadcastReset = async () => {
     try {
       const ch = supabase.channel('data-reset');
       await new Promise<void>((resolve) => {
@@ -253,24 +271,21 @@ export default function SettingsPage() {
       await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
       supabase.removeChannel(ch);
     } catch (e) { console.error('broadcast error:', e); }
+  };
+
+  const resetPayments = async () => {
+    await adminApi('/api/admin/reset', { method: 'POST', body: { type: 'payments' } });
+    await broadcastReset();
   };
 
   const resetTableStatus = async () => {
-    await supabase.from('tables').update({ status: 'empty' }).neq('id', 0);
-    try {
-      const ch = supabase.channel('data-reset');
-      await new Promise<void>((resolve) => {
-        ch.subscribe((status) => { if (status === 'SUBSCRIBED') resolve(); });
-        setTimeout(() => resolve(), 2000);
-      });
-      await ch.send({ type: 'broadcast', event: 'reset', payload: {} });
-      supabase.removeChannel(ch);
-    } catch (e) { console.error('broadcast error:', e); }
+    await adminApi('/api/admin/reset', { method: 'POST', body: { type: 'tables' } });
+    await broadcastReset();
   };
 
   const resetAll = async () => {
-    await resetPayments();
-    await resetTableStatus();
+    await adminApi('/api/admin/reset', { method: 'POST', body: { type: 'all' } });
+    await broadcastReset();
   };
 
   if (loading) {

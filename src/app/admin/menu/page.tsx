@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { adminApi } from '@/lib/admin-api';
 import { uploadImage } from '@/lib/storage';
 import type { Menu } from '@/lib/database.types';
 
@@ -104,8 +105,15 @@ export default function MenuManagementPage() {
   /* ── CRUD ─────────────────────────────────────── */
   const toggleSoldOut = async (menu: Menu) => {
     const next = !menu.is_sold_out;
-    await supabase.from('menus').update({ is_sold_out: next }).eq('id', menu.id);
     setMenus((prev) => prev.map((m) => (m.id === menu.id ? { ...m, is_sold_out: next } : m)));
+    const { error } = await adminApi('/api/admin/menu/toggle-soldout', {
+      method: 'POST',
+      body: { id: menu.id, is_sold_out: next },
+    });
+    if (error) {
+      // 롤백
+      setMenus((prev) => prev.map((m) => (m.id === menu.id ? { ...m, is_sold_out: !next } : m)));
+    }
   };
 
   const openAdd = () => {
@@ -146,9 +154,15 @@ export default function MenuManagementPage() {
     };
 
     if (editingId) {
-      await supabase.from('menus').update(payload).eq('id', editingId);
+      await adminApi('/api/admin/menu', {
+        method: 'PATCH',
+        body: { id: editingId, ...payload },
+      });
     } else {
-      await supabase.from('menus').insert(payload as any);
+      await adminApi('/api/admin/menu', {
+        method: 'POST',
+        body: payload,
+      });
     }
 
     setModalOpen(false);
@@ -157,8 +171,13 @@ export default function MenuManagementPage() {
 
   const deleteMenu = async (id: number) => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
-    await supabase.from('menus').delete().eq('id', id);
-    setMenus((prev) => prev.filter((m) => m.id !== id));
+    const { error } = await adminApi('/api/admin/menu', {
+      method: 'DELETE',
+      body: { id },
+    });
+    if (!error) {
+      setMenus((prev) => prev.filter((m) => m.id !== id));
+    }
   };
 
   /* ── Drag & Drop ──────────────────────────────── */
@@ -193,9 +212,10 @@ export default function MenuManagementPage() {
     });
 
     // Persist
-    for (let i = 0; i < ids.length; i++) {
-      await supabase.from('menus').update({ sort_order: i }).eq('id', ids[i]);
-    }
+    await adminApi('/api/admin/menu/reorder', {
+      method: 'POST',
+      body: { ids },
+    });
 
     setDragIdx(null);
     setDragOverIdx(null);
@@ -253,15 +273,27 @@ export default function MenuManagementPage() {
       const keptOriginals = catEdits.filter((c) => !c.isNew).map((c) => c.original);
       const deletedCats = originalCats.filter((c) => !keptOriginals.includes(c));
 
-      // Move deleted category menus to "기타"
+      // Move deleted category menus to "기타" — fetch ids then PATCH each
       for (const cat of deletedCats) {
-        await supabase.from('menus').update({ category: '기타' }).eq('category', cat);
+        const affected = menus.filter((m) => m.category === cat);
+        for (const m of affected) {
+          await adminApi('/api/admin/menu', {
+            method: 'PATCH',
+            body: { id: m.id, category: '기타' },
+          });
+        }
       }
 
       // Rename changed categories
       for (const cat of catEdits) {
         if (!cat.isNew && cat.name && cat.name !== cat.original) {
-          await supabase.from('menus').update({ category: cat.name }).eq('category', cat.original);
+          const affected = menus.filter((m) => m.category === cat.original);
+          for (const m of affected) {
+            await adminApi('/api/admin/menu', {
+              method: 'PATCH',
+              body: { id: m.id, category: cat.name },
+            });
+          }
         }
       }
 

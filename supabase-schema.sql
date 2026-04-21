@@ -26,10 +26,15 @@ INSERT INTO store_settings (store_name, store_description, bank_name, account_nu
 VALUES ('컴공학과 주점', '2025 봄 축제 컴공 주점입니다', '카카오뱅크', '3333-02-4481927', '김학생회장');
 
 -- ── 테이블 ──
+-- shape 컬럼은 역호환을 위해 남겨둠 (deprecated). 실제 치수/인원은 width/height/capacity 사용.
 CREATE TABLE tables (
   id SERIAL PRIMARY KEY,
   number INT NOT NULL UNIQUE,
   shape TEXT NOT NULL DEFAULT 'square-4' CHECK (shape IN ('square-2', 'square-4')),
+  kind TEXT NOT NULL DEFAULT 'table' CHECK (kind IN ('table', 'restroom', 'kitchen')),
+  width INT NOT NULL DEFAULT 140,
+  height INT NOT NULL DEFAULT 76,
+  capacity INT NOT NULL DEFAULT 4,
   position_x INT NOT NULL DEFAULT 0,
   position_y INT NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'empty' CHECK (status IN ('empty', 'occupied', 'payment_pending')),
@@ -110,20 +115,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE payments;
 ALTER PUBLICATION supabase_realtime ADD TABLE tables;
 ALTER PUBLICATION supabase_realtime ADD TABLE menus;
 
--- ── 샘플 데이터: 테이블 ──
-INSERT INTO tables (number, shape, position_x, position_y) VALUES
-  (1, 'square-4', 60, 80),
-  (2, 'square-4', 200, 80),
-  (3, 'square-4', 340, 80),
-  (4, 'square-2', 500, 80),
-  (5, 'square-4', 60, 240),
-  (6, 'square-4', 200, 240),
-  (7, 'square-4', 340, 240),
-  (8, 'square-2', 500, 240),
-  (9, 'square-4', 60, 400),
-  (10, 'square-4', 200, 400),
-  (11, 'square-4', 340, 400),
-  (12, 'square-2', 500, 400);
+-- ── 샘플 데이터: 테이블 (초기 상태는 빈 캔버스. 관리자가 직접 추가) ──
+-- 필요 시 아래 주석을 해제하여 샘플 추가
+-- INSERT INTO tables (number, kind, width, height, capacity, position_x, position_y) VALUES
+--   (1, 'table', 140, 76, 4, 60, 80),
+--   (2, 'table', 140, 76, 4, 240, 80);
 
 -- ── 샘플 데이터: 메뉴 ──
 INSERT INTO menus (name, description, price, category, is_sold_out, stock, max_stock, sort_order, tag) VALUES

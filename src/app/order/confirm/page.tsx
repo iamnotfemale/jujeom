@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import ClosedGate from '@/components/ClosedGate';
 
 /* ── Types ──────────────────────────────────── */
 interface CartItem {
@@ -21,7 +22,9 @@ const QUICK_TAGS = ['# 덜 맵게', '# 빨리 부탁드려요', '# 앞접시 추
 export default function OrderConfirmPageWrapper() {
   return (
     <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--f-sans)' }}>로딩 중...</div>}>
-      <OrderConfirmPage />
+      <ClosedGate>
+        <OrderConfirmPage />
+      </ClosedGate>
     </Suspense>
   );
 }
@@ -63,26 +66,31 @@ function OrderConfirmPage() {
     })();
   }, []);
 
-  /* hydrate cart from sessionStorage */
+  const [hydrated, setHydrated] = useState(false);
+
+  /* hydrate cart from localStorage (per-table key) */
   useEffect(() => {
-    const raw = sessionStorage.getItem('cart');
+    const key = `cart:table:${tableNumber}`;
+    const raw = localStorage.getItem(key);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        // The menu page stores CartItem[] as { menu: Menu; quantity: number }
+        // The menu page stores CartItem[] as { menu: Menu; quantity: number; options?: string | null }
         // Transform to the shape this page expects
         const transformed = parsed.map((c: any) => ({
           menuId: c.menu.id,
           name: c.menu.name,
           price: c.menu.price,
           quantity: c.quantity,
-          options: c.menu.options || null,
+          // prefer the user's selected option, fall back to the raw options blob
+          options: c.options ?? c.menu.options ?? null,
           imageUrl: c.menu.image_url || null,
         }));
         setItems(transformed);
       } catch { /* ignore */ }
     }
-  }, []);
+    setHydrated(true);
+  }, [tableNumber]);
 
   /* ── Price helpers ─────────────────────────── */
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -90,17 +98,46 @@ function OrderConfirmPage() {
   const total = subtotal;
 
   /* ── Quantity controls ─────────────────────── */
-  const updateQty = useCallback((menuId: number, delta: number) => {
+  const itemKey = (it: CartItem) => `${it.menuId}:${it.options ?? ''}`;
+
+  const updateQty = useCallback((key: string, delta: number) => {
     setItems(prev =>
       prev
-        .map(it => (it.menuId === menuId ? { ...it, quantity: it.quantity + delta } : it))
+        .map(it => (`${it.menuId}:${it.options ?? ''}` === key ? { ...it, quantity: it.quantity + delta } : it))
         .filter(it => it.quantity > 0),
     );
   }, []);
 
-  const removeItem = useCallback((menuId: number) => {
-    setItems(prev => prev.filter(it => it.menuId !== menuId));
+  const removeItem = useCallback((key: string) => {
+    setItems(prev => prev.filter(it => `${it.menuId}:${it.options ?? ''}` !== key));
   }, []);
+
+  /* persist item edits back to localStorage so menu page stays in sync */
+  useEffect(() => {
+    if (!hydrated) return; // hydrate 되기 전엔 절대 persist 하지 않음
+    const storageKey = `cart:table:${tableNumber}`;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      // filter/update existing records by (menu.id + options) to keep menu objects intact
+      const byKey = new Map(items.map(it => [`${it.menuId}:${it.options ?? ''}`, it]));
+      const nextCart = parsed
+        .map((c: any) => {
+          const k = `${c.menu.id}:${c.options ?? ''}`;
+          const updated = byKey.get(k);
+          if (!updated) return null;
+          return { ...c, quantity: updated.quantity };
+        })
+        .filter(Boolean);
+      if (nextCart.length === 0) {
+        localStorage.removeItem(storageKey);
+      } else {
+        localStorage.setItem(storageKey, JSON.stringify(nextCart));
+      }
+    } catch { /* ignore */ }
+  }, [items, tableNumber, hydrated]);
 
   /* ── Tag toggle ────────────────────────────── */
   const toggleTag = (tag: string) => {
@@ -122,96 +159,61 @@ function OrderConfirmPage() {
   /* ── Submit order ──────────────────────────── */
   const submitOrder = async (method: 'toss' | 'transfer') => {
     if (items.length === 0 || submitting) return;
+    if (!customerName.trim()) {
+      alert('입금자명을 입력해 주세요.');
+      return;
+    }
     setSubmitting(true);
 
     try {
-      /* 1. generate order number */
-      const now = new Date();
-      const orderNumber = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}-${Math.floor(Math.random() * 900 + 100)}`;
-
-      /* 2. look up actual table ID from table number */
-      const { data: tableData } = await supabase
-        .from('tables')
-        .select('id')
-        .eq('number', tableNumber)
-        .single();
-
-      const actualTableId = tableData?.id;
-
-      /* 3. insert order */
-      const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          order_number: orderNumber,
-          table_id: actualTableId,
-          table_number: tableNumber,
-          status: 'pending',
-          note: note || null,
-          total_amount: subtotal,
-          discount_amount: 0,
-          final_amount: subtotal,
-        })
-        .select()
-        .single();
-
-      if (orderErr || !order) throw orderErr;
-
-      /* 4. insert order items */
-      const orderItems = items.map(it => ({
-        order_id: order.id,
-        menu_id: it.menuId,
-        menu_name: it.name,
-        quantity: it.quantity,
-        unit_price: it.price,
-        options: it.options || null,
-      }));
-
-      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
-      if (itemsErr) throw itemsErr;
-
-      /* 4.5. deduct stock from menus */
-      try {
-        for (const it of items) {
-          const { data: menuData } = await supabase
-            .from('menus')
-            .select('stock')
-            .eq('id', it.menuId)
-            .single();
-
-          if (menuData) {
-            const newStock = Math.max(0, (menuData.stock ?? 0) - it.quantity);
-            await supabase
-              .from('menus')
-              .update({ stock: newStock, is_sold_out: newStock === 0 })
-              .eq('id', it.menuId);
-          }
-        }
-      } catch (stockErr) {
-        console.error('Stock deduction error (non-fatal):', stockErr);
-      }
-
-      /* 5. insert payment */
-      const { error: payErr } = await supabase.from('payments').insert({
-        order_id: order.id,
-        amount: subtotal,
-        status: 'waiting',
-        method,
-        customer_name: customerName || null,
-        customer_phone: customerPhone || null,
-        confirmed_at: null,
+      const { data, error } = await supabase.rpc('create_order_atomic', {
+        p_table_number: tableNumber,
+        p_note: note || null,
+        p_items: items.map(it => ({
+          menu_id: it.menuId,
+          quantity: it.quantity,
+          options: it.options ?? null,
+        })),
+        p_customer_name: customerName.trim(),
+        p_customer_phone: customerPhone || null,
+        p_method: method,
       });
-      if (payErr) throw payErr;
 
-      /* 6. open toss deeplink if applicable */
-      if (method === 'toss') {
-        window.location.href = `supertoss://send?bank=${encodeURIComponent(bankName)}&accountNo=${accountNo}&amount=${subtotal}&origin=컴공주점`;
+      if (error) {
+        // Supabase RPC에서 RAISE EXCEPTION한 메시지가 error.message에 들어있음
+        console.error('create_order_atomic error:', error);
+        alert(error.message || '주문 실패. 다시 시도해 주세요.');
+        setSubmitting(false);
+        return;
       }
 
-      /* 7. redirect to status page */
-      router.push(`/order/status?orderId=${order.id}&table=${tableNumber}`);
+      // RPC의 RETURNS TABLE은 배열로 반환됨
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.order_id) {
+        alert('주문 생성 응답이 비어있습니다.');
+        setSubmitting(false);
+        return;
+      }
+
+      // 장바구니 비우기
+      try {
+        localStorage.removeItem(`cart:table:${tableNumber}`);
+      } catch { /* ignore */ }
+
+      // Toss 딥링크 (모바일에서만)
+      if (method === 'toss') {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = `supertoss://send?bank=${encodeURIComponent(bankName)}&accountNo=${accountNo}&amount=${row.total}&origin=${encodeURIComponent(storeName)}`;
+        }
+        // 데스크톱: 그냥 redirect
+      }
+
+      // 상태 페이지로 이동
+      router.push(`/order/status?orderId=${row.order_id}&table=${tableNumber}`);
     } catch (err) {
       console.error('Order submit failed:', err);
-      alert('주문에 실패했어요. 다시 시도해 주세요.');
+      alert('주문에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요.');
       setSubmitting(false);
     }
   };
@@ -262,8 +264,10 @@ function OrderConfirmPage() {
               </Link>
             </div>
           )}
-          {items.map(item => (
-            <div key={item.menuId} style={{
+          {items.map(item => {
+            const k = itemKey(item);
+            return (
+            <div key={k} style={{
               display: 'flex', gap: 12, padding: '14px 16px',
               borderBottom: '1px solid var(--ink-100)',
             }}>
@@ -289,7 +293,7 @@ function OrderConfirmPage() {
               {/* qty controls */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <button
-                  onClick={() => item.quantity === 1 ? removeItem(item.menuId) : updateQty(item.menuId, -1)}
+                  onClick={() => item.quantity === 1 ? removeItem(k) : updateQty(k, -1)}
                   style={{
                     width: 30, height: 30, borderRadius: 'var(--r-sm)',
                     border: '1px solid var(--border)', background: 'var(--surface)',
@@ -303,7 +307,7 @@ function OrderConfirmPage() {
                   {item.quantity}
                 </span>
                 <button
-                  onClick={() => updateQty(item.menuId, 1)}
+                  onClick={() => updateQty(k, 1)}
                   style={{
                     width: 30, height: 30, borderRadius: 'var(--r-sm)',
                     border: '1px solid var(--border)', background: 'var(--surface)',
@@ -315,7 +319,8 @@ function OrderConfirmPage() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </section>
 
         {/* ── Note / request ───────────────── */}

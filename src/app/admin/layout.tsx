@@ -106,7 +106,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* noop */ }
     sessionStorage.removeItem('admin_auth');
     setAuthed(false);
   };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { adminApi } from '@/lib/admin-api';
 import type { Order, OrderItem } from '@/lib/database.types';
 import PinLogin from '@/components/PinLogin';
 
@@ -133,7 +134,10 @@ export default function KitchenKDSPage() {
   }, []);
 
   const updateStatus = async (orderId: number, newOrderStatus: string) => {
-    await supabase.from('orders').update({ status: newOrderStatus, updated_at: new Date().toISOString() }).eq('id', orderId);
+    await adminApi('/api/kitchen/order-status', {
+      method: 'POST',
+      body: { orderId, newStatus: newOrderStatus },
+    });
     fetchData();
   };
 
@@ -166,8 +170,8 @@ export default function KitchenKDSPage() {
         label: '서빙이 완료되었습니까?',
         ticket,
         onConfirm: async () => {
+          // /api/kitchen/order-status가 payments.completed 동기화도 처리
           await updateStatus(ticket.orderId, 'served');
-          await supabase.from('payments').update({ status: 'completed' }).eq('order_id', ticket.orderId);
           showToast(`#${ticket.orderNumber} 서빙 완료`);
           setDialog(null);
         },
@@ -178,6 +182,7 @@ export default function KitchenKDSPage() {
         label: '이 주문을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
         ticket,
         onConfirm: async () => {
+          // /api/kitchen/order-status가 payments.cancelled 및 재고 원복까지 처리
           await updateStatus(ticket.orderId, 'cancelled');
           showToast(`#${ticket.orderNumber} 주문 취소됨`);
           setDialog(null);
@@ -224,7 +229,10 @@ export default function KitchenKDSPage() {
     return map[status] ?? { bg: 'var(--ink-400)', label: status };
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch { /* noop */ }
     sessionStorage.removeItem('admin_auth');
     setAuthed(false);
   };

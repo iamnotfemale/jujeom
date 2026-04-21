@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import ClosedGate from '@/components/ClosedGate';
 
 function LandingContent() {
   const searchParams = useSearchParams();
@@ -28,6 +29,13 @@ function LandingContent() {
       }
     })();
   }, []);
+
+  // Clear this table's cart when the landing page mounts (fresh entry via QR).
+  useEffect(() => {
+    try {
+      localStorage.removeItem(`cart:table:${table}`);
+    } catch { /* ignore */ }
+  }, [table]);
 
   // 이 테이블의 주문 기록 조회
   useEffect(() => {
@@ -483,7 +491,9 @@ export default function OrderLandingPage() {
         </div>
       }
     >
-      <LandingContent />
+      <ClosedGate>
+        <LandingContent />
+      </ClosedGate>
     </Suspense>
   );
 }
