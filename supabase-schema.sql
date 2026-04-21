@@ -21,9 +21,9 @@ CREATE TABLE store_settings (
   auto_lock_kds BOOLEAN NOT NULL DEFAULT true
 );
 
--- 기본 설정 삽입
+-- 기본 설정 삽입 (계좌번호/예금주는 배포 후 관리자 설정 화면에서 입력)
 INSERT INTO store_settings (store_name, store_description, bank_name, account_number, account_holder)
-VALUES ('컴공학과 주점', '2025 봄 축제 컴공 주점입니다', '카카오뱅크', '3333-02-4481927', '김학생회장');
+VALUES ('주점', '', '카카오뱅크', '', '');
 
 -- ── 테이블 ──
 -- shape 컬럼은 역호환을 위해 남겨둠 (deprecated). 실제 치수/인원은 width/height/capacity 사용.
