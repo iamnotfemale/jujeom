@@ -14,8 +14,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
 
-  // PIN은 별도 route에서만 처리
-  if ('pin' in body) delete body.pin;
+  // PIN은 admin_auth 테이블에서 관리됨 (별도 route: /api/admin/auth/set-pin)
   if ('pin_hash' in body) delete body.pin_hash;
   if ('id' in body) delete body.id;
 

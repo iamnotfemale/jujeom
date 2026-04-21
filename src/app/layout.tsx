@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { createClient } from "@supabase/supabase-js";
 import "./globals.css";
 import DynamicTitle from "@/components/DynamicTitle";
+import { ToastProvider } from "@/components/ToastProvider";
+import { ConfirmProvider } from "@/components/ConfirmProvider";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
@@ -71,7 +73,11 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <DynamicTitle />
-        {children}
+        <ToastProvider>
+          <ConfirmProvider>
+            {children}
+          </ConfirmProvider>
+        </ToastProvider>
       </body>
     </html>
   );

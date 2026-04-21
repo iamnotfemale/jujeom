@@ -28,19 +28,12 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .single();
 
-  let ok = false;
-  if (row?.pin_hash) {
-    // bcrypt hash
-    ok = await bcrypt.compare(pin, row.pin_hash);
-  } else {
-    // Fallback: store_settings.pin 평문 비교 (마이그레이션 전 호환)
-    const { data: s } = await supabaseAdmin
-      .from('store_settings')
-      .select('pin')
-      .limit(1)
-      .single();
-    ok = !!s && s.pin === pin;
+  if (!row?.pin_hash) {
+    // admin_auth 미설정 상태 → 서버 설정 오류로 명시
+    return NextResponse.json({ error: 'admin_auth_not_configured' }, { status: 500 });
   }
+
+  const ok = await bcrypt.compare(pin, row.pin_hash);
 
   if (!ok) {
     const { lockedNow } = recordPinFailure(ip);

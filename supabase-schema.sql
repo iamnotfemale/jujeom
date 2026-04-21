@@ -1,5 +1,9 @@
 -- 주점 주문 앱 Supabase 스키마
 -- tables / menus / orders / order_items / payments / store_settings
+--
+-- NOTE: 관리자 PIN은 이 스키마가 아닌 admin_auth 테이블(bcrypt 해시)에서 관리됨.
+--       admin_auth 테이블은 supabase-security-functions.sql에서 생성된다.
+--       신규 설치 시 Next.js 서버(/api/admin/auth/set-pin)를 통해 초기 PIN을 설정할 것.
 
 -- ── 주점 설정 ──
 CREATE TABLE store_settings (
@@ -17,7 +21,6 @@ CREATE TABLE store_settings (
   is_open BOOLEAN NOT NULL DEFAULT false,
   is_paused BOOLEAN NOT NULL DEFAULT false,
   closed_message TEXT DEFAULT '오늘 영업은 종료되었습니다.',
-  pin TEXT NOT NULL DEFAULT '0000',
   auto_lock_kds BOOLEAN NOT NULL DEFAULT true
 );
 
@@ -68,7 +71,6 @@ CREATE TABLE orders (
     CHECK (status IN ('pending', 'accepted', 'cooking', 'ready', 'served', 'cancelled')),
   note TEXT DEFAULT '',
   total_amount INT NOT NULL DEFAULT 0,
-  discount_amount INT NOT NULL DEFAULT 0,
   final_amount INT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

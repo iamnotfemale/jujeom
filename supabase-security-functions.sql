@@ -212,11 +212,11 @@ BEGIN
   -- ── orders INSERT (총액은 아이템 루프 후 UPDATE) ──
   INSERT INTO orders (
     order_number, table_id, table_number, status, note,
-    total_amount, discount_amount, final_amount
+    total_amount, final_amount
   )
   VALUES (
     v_order_number, v_table.id, v_table.number, 'pending', COALESCE(p_note, ''),
-    0, 0, 0
+    0, 0
   )
   RETURNING id INTO v_order_id;
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ClosedGate from '@/components/ClosedGate';
+import { useToast } from '@/components/ToastProvider';
 
 /* ── Types ──────────────────────────────────── */
 interface CartItem {
@@ -58,6 +59,7 @@ export default function OrderConfirmPageWrapper() {
 function OrderConfirmPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
 
   const tableNumber = Number(searchParams.get('table') || '1');
 
@@ -119,9 +121,7 @@ function OrderConfirmPage() {
   }, [tableNumber]);
 
   /* ── Price helpers ─────────────────────────── */
-  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discount = 0;
-  const total = subtotal;
+  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
 
   /* ── Quantity controls ─────────────────────── */
   const itemKey = (it: CartItem) => `${it.menuId}:${it.options ?? ''}`;
@@ -186,7 +186,7 @@ function OrderConfirmPage() {
   const submitOrder = async (method: 'toss' | 'transfer') => {
     if (items.length === 0 || submitting) return;
     if (!customerName.trim()) {
-      alert('입금자명을 입력해 주세요.');
+      showToast('입금자명을 입력해 주세요.', 'warn');
       return;
     }
     setSubmitting(true);
@@ -229,7 +229,7 @@ function OrderConfirmPage() {
           err.hint ||
           err.message ||
           '주문 실패. 다시 시도해 주세요.';
-        alert(friendly);
+        showToast(friendly, 'error');
         setSubmitting(false);
         return;
       }
@@ -237,7 +237,7 @@ function OrderConfirmPage() {
       // RPC의 RETURNS TABLE은 배열로 반환됨
       const row = Array.isArray(data) ? data[0] : data;
       if (!row?.order_id) {
-        alert('주문 생성 응답이 비어있습니다.');
+        showToast('주문 생성 응답이 비어있습니다. 잠시 후 다시 시도해주세요.', 'error');
         setSubmitting(false);
         return;
       }
@@ -263,7 +263,7 @@ function OrderConfirmPage() {
       router.push(`/order/status?orderId=${row.order_id}&table=${tableNumber}`);
     } catch (err) {
       console.error('Order submit failed:', err);
-      alert('주문에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요.');
+      showToast('주문에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요.', 'error');
       setSubmitting(false);
     }
   };
@@ -420,11 +420,6 @@ function OrderConfirmPage() {
           border: '1px solid var(--border)', padding: 16,
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: 'var(--text-2)' }}>
-            <span>소계</span>
-            <span className="numeric">{subtotal.toLocaleString()}원</span>
-          </div>
-          <div style={{ height: 1, background: 'var(--border)' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700 }}>
             <span>결제 금액</span>
             <span className="numeric">{total.toLocaleString()}원</span>

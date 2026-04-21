@@ -48,7 +48,6 @@ export interface Order {
   status: OrderStatus;
   note: string | null;
   total_amount: number;
-  discount_amount: number;
   final_amount: number;
   created_at: string;
   updated_at: string;
@@ -91,7 +90,6 @@ export interface StoreSettings {
   is_open: boolean;
   is_paused: boolean;
   closed_message: string | null;
-  pin: string;
   auto_lock_kds: boolean;
 }
 

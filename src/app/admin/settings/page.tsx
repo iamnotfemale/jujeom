@@ -29,7 +29,6 @@ const DEFAULT_SETTINGS: StoreSettings = {
   is_open: false,
   is_paused: false,
   closed_message: null,
-  pin: '',
   auto_lock_kds: false,
 };
 
@@ -131,8 +130,8 @@ export default function SettingsPage() {
       // Handle PIN update separately if new PIN is provided
       let pinChanged = false;
       if (newPin && newPin === confirmPin) {
-        if (currentPin !== settings.pin) {
-          setPinError('현재 PIN이 올바르지 않습니다');
+        if (!currentPin) {
+          setPinError('현재 PIN을 입력하세요');
           setSaving(false);
           return;
         }
@@ -141,12 +140,24 @@ export default function SettingsPage() {
           setSaving(false);
           return;
         }
+        // 현재 PIN 검증 (login API 재사용)
+        const verifyRes = await fetch('/api/admin/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pin: currentPin }),
+          credentials: 'include',
+        });
+        if (!verifyRes.ok) {
+          setPinError('현재 PIN이 올바르지 않습니다');
+          setSaving(false);
+          return;
+        }
         pinChanged = true;
       }
 
-      // store_settings 업데이트 (pin 제외)
-      const { id: _id, pin: _pin, ...rest } = settings;
-      void _id; void _pin;
+      // store_settings 업데이트
+      const { id: _id, ...rest } = settings;
+      void _id;
       const { error } = await adminApi('/api/admin/settings', {
         method: 'PATCH',
         body: rest,
@@ -170,9 +181,8 @@ export default function SettingsPage() {
         }
       }
 
-      const updatedSettings = pinChanged ? { ...settings, pin: newPin } : settings;
-      setSettings(updatedSettings);
-      setOriginal(updatedSettings);
+      setSettings(settings);
+      setOriginal(settings);
       setCurrentPin('');
       setNewPin('');
       setConfirmPin('');
@@ -197,8 +207,8 @@ export default function SettingsPage() {
 
   const handlePinChange = async () => {
     setPinError(null);
-    if (currentPin !== settings.pin) {
-      setPinError('현재 PIN이 올바르지 않습니다');
+    if (!currentPin) {
+      setPinError('현재 PIN을 입력하세요');
       return;
     }
     if (newPin.length < 4) {
@@ -209,6 +219,17 @@ export default function SettingsPage() {
       setPinError('새 PIN이 일치하지 않습니다');
       return;
     }
+    // 현재 PIN 검증 (login API 재사용)
+    const verifyRes = await fetch('/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: currentPin }),
+      credentials: 'include',
+    });
+    if (!verifyRes.ok) {
+      setPinError('현재 PIN이 올바르지 않습니다');
+      return;
+    }
     const { error } = await adminApi('/api/admin/auth/set-pin', {
       method: 'POST',
       body: { newPin },
@@ -217,8 +238,6 @@ export default function SettingsPage() {
       setPinError('PIN 변경 실패');
       return;
     }
-    update('pin', newPin);
-    setOriginal((prev) => ({ ...prev, pin: newPin }));
     setCurrentPin('');
     setNewPin('');
     setConfirmPin('');

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import { uploadImage } from '@/lib/storage';
 import type { Menu } from '@/lib/database.types';
+import { useConfirm } from '@/components/ConfirmProvider';
 
 /* ── Constants ──────────────────────────────────── */
 const CATEGORIES = ['전체', '안주', '주류', '음료', '기타'] as const;
@@ -61,6 +62,7 @@ function formatPrice(n: number) {
 
 /* ── Component ──────────────────────────────────── */
 export default function MenuManagementPage() {
+  const { confirm: showConfirm } = useConfirm();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('전체');
@@ -170,7 +172,8 @@ export default function MenuManagementPage() {
   };
 
   const deleteMenu = async (id: number) => {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
+    const ok = await showConfirm({ title: '메뉴 삭제', message: '정말 삭제하시겠습니까?', danger: true, confirmText: '삭제' });
+    if (!ok) return;
     const { error } = await adminApi('/api/admin/menu', {
       method: 'DELETE',
       body: { id },
@@ -252,14 +255,18 @@ export default function MenuManagementPage() {
     setCatEdits((prev) => [...prev, { original: '', name: '', isNew: true }]);
   };
 
-  const deleteCategory = (idx: number) => {
+  const deleteCategory = async (idx: number) => {
     const cat = catEdits[idx];
     if (!cat.isNew) {
       const count = menus.filter((m) => m.category === cat.original).length;
       if (count > 0) {
-        if (!confirm(`"${cat.original}" 카테고리에 ${count}개의 메뉴가 있습니다. 삭제하면 해당 메뉴의 카테고리가 "기타"로 변경됩니다. 계속하시겠습니까?`)) {
-          return;
-        }
+        const ok = await showConfirm({
+          title: '카테고리 삭제',
+          message: `"${cat.original}" 카테고리에 ${count}개의 메뉴가 있습니다. 삭제하면 해당 메뉴의 카테고리가 "기타"로 변경됩니다. 계속하시겠습니까?`,
+          danger: true,
+          confirmText: '삭제',
+        });
+        if (!ok) return;
       }
     }
     setCatEdits((prev) => prev.filter((_, i) => i !== idx));
