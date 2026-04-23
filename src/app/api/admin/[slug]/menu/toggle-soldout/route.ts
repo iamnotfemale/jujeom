@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { requireStoreRole } from '@/lib/require-store-role';
+import { writeAuditLog, clientIp } from '@/lib/audit-log';
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await params;
+  // 주방도 품절 토글 가능
+  const check = await requireStoreRole(slug, 'kitchen');
+  if (check.error) return check.error;
+
+  let body: { id?: number; is_sold_out?: boolean };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+  }
+
+  if (!body.id || typeof body.is_sold_out !== 'boolean') {
+    return NextResponse.json({ error: 'invalid_fields' }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('menus')
+    .update({ is_sold_out: body.is_sold_out })
+    .eq('id', body.id)
+    .eq('store_id', check.store.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await writeAuditLog(
+    'menu.toggle_soldout',
+    { id: body.id, is_sold_out: body.is_sold_out },
+    clientIp(req),
+  );
+  return NextResponse.json({ ok: true });
+}
