@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-push: run lint + typecheck. Fail fast on errors.
+# To enable: git config core.hooksPath .githooks
+
+set -e
+
+echo "[pre-push] npm run lint"
+npm run lint
+
+echo "[pre-push] npm run typecheck"
+npm run typecheck
+
+echo "[pre-push] OK"
