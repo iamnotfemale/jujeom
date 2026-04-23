@@ -35,6 +35,7 @@ yarn-error.log*
 
 # Claude Code local config
 .claude/settings.local.json
+.mcp.json
 
 # vercel
 .vercel
