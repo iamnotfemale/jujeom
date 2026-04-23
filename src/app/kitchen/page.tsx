@@ -41,7 +41,7 @@ export default function KitchenKDSPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('전체');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [paused, setPaused] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dialog, setDialog] = useState<ConfirmDialog | null>(null);
@@ -85,7 +85,7 @@ export default function KitchenKDSPage() {
       const allOrders = orders ?? [];
       const orderIds = allOrders.map((o) => o.id);
 
-      let itemsMap: Record<number, { name: string; quantity: number; options: string | null }[]> = {};
+      const itemsMap: Record<number, { name: string; quantity: number; options: string | null }[]> = {};
       if (orderIds.length > 0) {
         const { data: items } = await supabase
           .from('order_items')

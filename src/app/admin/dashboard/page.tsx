@@ -36,6 +36,12 @@ export default function DashboardPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(tick);
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -92,7 +98,7 @@ export default function DashboardPage() {
       // Build recent orders with items
       const recent = todayOrders.slice(0, 5);
       const recentIds = recent.map((o) => o.id);
-      let itemsMap: Record<number, string> = {};
+      const itemsMap: Record<number, string> = {};
       if (recentIds.length > 0) {
         const { data: items } = await supabase
           .from('order_items')
@@ -161,7 +167,7 @@ export default function DashboardPage() {
   });
 
   const timeAgo = (iso: string) => {
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    const diff = Math.floor((now - new Date(iso).getTime()) / 60000);
     if (diff < 1) return '방금';
     if (diff < 60) return `${diff}분 전`;
     return `${Math.floor(diff / 60)}시간 전`;

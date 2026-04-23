@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -92,18 +92,16 @@ function OrderStatusPage() {
   /* progress bar width: step 0 → 0%, 1 → 33%, 2 → 66%, 3 → 100% */
   const progressPct = stepIndex <= 0 ? 0 : Math.min(100, Math.round((stepIndex / 3) * 100));
 
-  /* ── Confetti spans ────────────────────────── */
-  const confettiSpans = useMemo(
-    () =>
-      Array.from({ length: 24 }, (_, i) => ({
-        id: i,
-        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-        left: `${Math.random() * 100}%`,
-        delay: `${(Math.random() * 2).toFixed(2)}s`,
-        size: 6 + Math.random() * 6,
-        duration: `${(2 + Math.random() * 2).toFixed(2)}s`,
-      })),
-    [],
+  /* ── Confetti spans (생성 시점 1회 고정) ────── */
+  const [confettiSpans] = useState(() =>
+    Array.from({ length: 24 }, (_, i) => ({
+      id: i,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      left: `${Math.random() * 100}%`,
+      delay: `${(Math.random() * 2).toFixed(2)}s`,
+      size: 6 + Math.random() * 6,
+      duration: `${(2 + Math.random() * 2).toFixed(2)}s`,
+    })),
   );
 
   if (!orderId) {

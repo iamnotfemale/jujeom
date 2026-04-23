@@ -35,7 +35,7 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('전체');
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [toast, setToast] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<PaymentRow | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);

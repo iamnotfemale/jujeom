@@ -81,13 +81,18 @@ function OrderConfirmPage() {
         const parsed = JSON.parse(raw);
         // The menu page stores CartItem[] as { menu: Menu; quantity: number; options?: string | null }
         // Transform to the shape this page expects
-        const transformed = parsed.map((c: any) => ({
+        type StoredCartItem = {
+          menu: { id: number; name: string; price: number; image_url?: string | null; options?: string | null };
+          quantity: number;
+          options?: string | null;
+        };
+        const transformed: CartItem[] = (parsed as StoredCartItem[]).map((c) => ({
           menuId: c.menu.id,
           name: c.menu.name,
           price: c.menu.price,
           quantity: c.quantity,
           // prefer the user's selected option, fall back to the raw options blob
-          options: c.options ?? c.menu.options ?? null,
+          options: c.options ?? c.menu.options ?? undefined,
           imageUrl: c.menu.image_url || null,
         }));
         setItems(transformed);
@@ -125,8 +130,13 @@ function OrderConfirmPage() {
       if (!Array.isArray(parsed)) return;
       // filter/update existing records by (menu.id + options) to keep menu objects intact
       const byKey = new Map(items.map(it => [`${it.menuId}:${it.options ?? ''}`, it]));
-      const nextCart = parsed
-        .map((c: any) => {
+      type StoredCartItem = {
+        menu: { id: number; name: string; price: number; image_url?: string | null; options?: string | null };
+        quantity: number;
+        options?: string | null;
+      };
+      const nextCart = (parsed as StoredCartItem[])
+        .map((c) => {
           const k = `${c.menu.id}:${c.options ?? ''}`;
           const updated = byKey.get(k);
           if (!updated) return null;

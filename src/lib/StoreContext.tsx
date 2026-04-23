@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { createContext, useContext } from 'react';
 
 interface StoreContextValue {
   storeName: string;
