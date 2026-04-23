@@ -1,12 +1,11 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/dashboard';
 
@@ -26,8 +25,8 @@ function LoginForm() {
       setError(signInError.message);
       return;
     }
-    router.replace(next);
-    router.refresh();
+    // 전체 페이지 이동으로 서버 세션 쿠키를 확실히 전달
+    window.location.href = next;
   };
 
   return (

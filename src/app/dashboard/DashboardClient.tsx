@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-interface StoreCard {
+export interface StoreCard {
   role: 'owner' | 'manager' | 'kitchen';
   store: {
     id: string;
@@ -17,9 +18,16 @@ interface StoreCard {
 
 const MAX_STORES = 5;
 
-export default function DashboardClient({ userEmail }: { userEmail: string }) {
-  const [stores, setStores] = useState<StoreCard[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function DashboardClient({
+  userEmail,
+  initialStores,
+}: {
+  userEmail: string;
+  initialStores: StoreCard[];
+}) {
+  const router = useRouter();
+  const [stores, setStores] = useState<StoreCard[]>(initialStores);
+  const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
@@ -30,16 +38,16 @@ export default function DashboardClient({ userEmail }: { userEmail: string }) {
     setLoading(true);
     try {
       const res = await fetch('/api/stores');
+      if (res.status === 401) {
+        router.replace('/login');
+        return;
+      }
       const json = (await res.json()) as { stores?: StoreCard[]; error?: string };
       if (res.ok) setStores(json.stores ?? []);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchStores();
-  }, [fetchStores]);
+  }, [router]);
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
