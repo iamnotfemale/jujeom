@@ -3,7 +3,6 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect, useMemo, createContext, useContext } from 'react';
-import PinLogin from '@/components/PinLogin';
 import { supabase } from '@/lib/supabase';
 
 const AdminStoreContext = createContext<string>('주점');
@@ -20,17 +19,11 @@ interface NavItem {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [authed, setAuthed] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [staffCall, setStaffCall] = useState<{ table: string; time: string } | null>(null);
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [paymentPendingCount, setPaymentPendingCount] = useState<number | null>(null);
-  const [storeName, setStoreName] = useState<string>('주점');
-
-  useEffect(() => {
-    setAuthed(sessionStorage.getItem('admin_auth') === 'true');
-    setAuthChecked(true);
-  }, []);
+  // Phase 2a: 가게 이름은 정적 기본값. Phase 2c에서 /s/[slug]/admin 레이아웃으로 분리 예정.
+  const storeName = '주점';
 
   /* Fetch dynamic counts */
   useEffect(() => {
@@ -70,14 +63,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
   }, []);
 
-  /* Fetch store name */
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('store_settings').select('store_name').limit(1).single();
-      if (data?.store_name) setStoreName(data.store_name);
-    })();
-  }, []);
-
   const navSections: { label: string; items: NavItem[] }[] = useMemo(() => [
     {
       label: '운영',
@@ -106,16 +91,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/admin/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch { /* noop */ }
-    sessionStorage.removeItem('admin_auth');
-    setAuthed(false);
+  const handleLogout = () => {
+    window.location.href = '/auth/logout';
   };
-
-  if (!authChecked) return null;
-  if (!authed) return <PinLogin onSuccess={() => setAuthed(true)} />;
 
   return (
     <div style={styles.frame}>

@@ -1,20 +1,19 @@
 import { supabaseAdmin } from '@/lib/supabase-server';
 
 /**
- * Write an audit log row. Best-effort — swallows errors so that a missing
- * audit_log table cannot block a successful admin action.
+ * audit_log row를 기록한다. 실패는 무시 — 주 동작을 막지 않게.
+ * 신스키마 컬럼: actor, action, metadata (+ store_id, user_id는 Phase 2c에서 채움)
  */
 export async function writeAuditLog(
   action: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  details: Record<string, any> = {},
+  metadata: Record<string, unknown> = {},
   ip: string = 'unknown',
 ) {
   try {
     await supabaseAdmin.from('audit_log').insert({
+      actor: 'admin',
       action,
-      details,
-      ip,
+      metadata: { ...metadata, ip },
     });
   } catch {
     // ignore

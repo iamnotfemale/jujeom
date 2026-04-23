@@ -11,6 +11,7 @@
     "verify": "npm run lint && npm run typecheck"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.3",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.2",

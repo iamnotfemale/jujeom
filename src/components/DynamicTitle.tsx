@@ -1,9 +1,15 @@
 'use client';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 
+/**
+ * Phase 2a 임시 버전 — store 이름은 정적 기본값 사용.
+ * Phase 2c에서 /s/[slug] 라우팅 도입 시 해당 가게 이름으로 교체.
+ */
 const PAGE_TITLES: Record<string, string> = {
+  '/login': '로그인',
+  '/signup': '회원가입',
+  '/dashboard': '대시보드',
   '/order': '주문하기',
   '/order/menu': '메뉴',
   '/order/confirm': '주문 확인',
@@ -16,16 +22,14 @@ const PAGE_TITLES: Record<string, string> = {
   '/kitchen': '주방 KDS',
 };
 
+const DEFAULT_STORE_NAME = '주점';
+
 export default function DynamicTitle() {
   const pathname = usePathname();
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('store_settings').select('store_name').single();
-      const storeName = data?.store_name || '주점';
-      const pageLabel = PAGE_TITLES[pathname] || '';
-      document.title = pageLabel ? `${pageLabel} | ${storeName}` : storeName;
-    })();
+    const pageLabel = PAGE_TITLES[pathname] || '';
+    document.title = pageLabel ? `${pageLabel} | ${DEFAULT_STORE_NAME}` : DEFAULT_STORE_NAME;
   }, [pathname]);
 
   return null;

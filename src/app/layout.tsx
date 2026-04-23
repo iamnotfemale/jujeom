@@ -1,82 +1,37 @@
-import type { Metadata, Viewport } from "next";
-import { createClient } from "@supabase/supabase-js";
-import "./globals.css";
-import DynamicTitle from "@/components/DynamicTitle";
-import { ToastProvider } from "@/components/ToastProvider";
-import { ConfirmProvider } from "@/components/ConfirmProvider";
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import DynamicTitle from '@/components/DynamicTitle';
+import { ToastProvider } from '@/components/ToastProvider';
+import { ConfirmProvider } from '@/components/ConfirmProvider';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-
-export async function generateMetadata(): Promise<Metadata> {
-  let storeName = "주점";
-  let storeDesc = "축제 주점 주문 시스템";
-  let logoUrl: string | undefined;
-
-  try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data } = await supabase
-      .from("store_settings")
-      .select("store_name, store_description, toss_qr_url")
-      .single();
-    if (data?.store_name) storeName = data.store_name;
-    if (data?.store_description) storeDesc = data.store_description;
-
-    // 로고 이미지 — store-assets 버킷에서 고정 경로 시도
-    const { data: logoData } = supabase.storage
-      .from("store-assets")
-      .getPublicUrl("logo/logo.png");
-    if (logoData?.publicUrl) logoUrl = logoData.publicUrl;
-  } catch {
-    // fallback to defaults
-  }
-
-  const images = logoUrl ? [{ url: logoUrl, width: 512, height: 512, alt: storeName }] : [];
-
-  return {
-    title: {
-      default: storeName,
-      template: `%s | ${storeName}`,
-    },
-    description: storeDesc,
-    icons: { icon: "/favicon.ico" },
-    openGraph: {
-      title: storeName,
-      description: storeDesc,
-      type: "website",
-      siteName: storeName,
-      images,
-    },
-    twitter: {
-      card: logoUrl ? "summary_large_image" : "summary",
-      title: storeName,
-      description: storeDesc,
-      images: logoUrl ? [logoUrl] : [],
-    },
-  };
-}
+/**
+ * Phase 2a — 전역 기본 메타데이터. 가게별 메타데이터는 Phase 2c에서
+ * /s/[slug]/layout.tsx 에서 generateMetadata로 덮어쓴다.
+ */
+export const metadata: Metadata = {
+  title: { default: '주점', template: '%s | 주점' },
+  description: '축제 주점 주문 시스템',
+  icons: { icon: '/favicon.ico' },
+  openGraph: { title: '주점', description: '축제 주점 주문 시스템', type: 'website' },
+};
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#0E1220",
+  themeColor: '#0E1220',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
       <body>
         <DynamicTitle />
         <ToastProvider>
-          <ConfirmProvider>
-            {children}
-          </ConfirmProvider>
+          <ConfirmProvider>{children}</ConfirmProvider>
         </ToastProvider>
       </body>
     </html>

@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import type { Order, OrderItem, ServingMode } from '@/lib/database.types';
-import PinLogin from '@/components/PinLogin';
 
 type KDSStatus = 'new' | 'cooking' | 'done' | 'served' | 'cancelled';
 type FilterTab = '전체' | '신규' | '조리 중' | '완료 대기' | '오늘 완료';
@@ -36,8 +35,6 @@ const statusMap: Record<string, KDSStatus> = {
 };
 
 export default function KitchenKDSPage() {
-  const [authed, setAuthed] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('전체');
@@ -46,23 +43,9 @@ export default function KitchenKDSPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [dialog, setDialog] = useState<ConfirmDialog | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const [storeName, setStoreName] = useState<string>('주점');
-  const [servingMode, setServingMode] = useState<ServingMode>('pickup');
-
-  useEffect(() => {
-    setAuthed(sessionStorage.getItem('admin_auth') === 'true');
-    setAuthChecked(true);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from('store_settings').select('store_name, serving_mode').limit(1).single();
-      if (data?.store_name) setStoreName(data.store_name);
-      if (data?.serving_mode === 'table' || data?.serving_mode === 'pickup') {
-        setServingMode(data.serving_mode);
-      }
-    })();
-  }, []);
+  // Phase 2a: 가게 정보는 정적 기본값. Phase 2c에서 /s/[slug]/kitchen 구조로 분리.
+  const storeName = '주점';
+  const servingMode = 'pickup' as ServingMode;
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -233,16 +216,9 @@ export default function KitchenKDSPage() {
     return map[status] ?? { bg: 'var(--ink-400)', label: status };
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/admin/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch { /* noop */ }
-    sessionStorage.removeItem('admin_auth');
-    setAuthed(false);
+  const handleLogout = () => {
+    window.location.href = '/auth/logout';
   };
-
-  if (!authChecked) return null;
-  if (!authed) return <PinLogin onSuccess={() => setAuthed(true)} />;
 
   return (
     <div style={k.frame}>

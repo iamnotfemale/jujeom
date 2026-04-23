@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
-import { requireAdmin } from '@/lib/require-admin';
+import { requireUser } from '@/lib/require-user';
 import { writeAuditLog, clientIp } from '@/lib/audit-log';
 
 type ResetType = 'payments' | 'tables' | 'all';
 
 export async function POST(req: NextRequest) {
-  const unauth = await requireAdmin(req);
+  const { error: unauth } = await requireUser();
   if (unauth) return unauth;
 
   let body: { type?: ResetType };

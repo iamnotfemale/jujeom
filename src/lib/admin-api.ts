@@ -10,8 +10,11 @@ export async function adminApi<T = unknown>(
       credentials: 'include',
     });
     if (res.status === 401) {
-      // 세션 만료 → 로그인 페이지로
-      if (typeof window !== 'undefined') window.location.reload();
+      // Supabase 세션 만료 → 로그인으로
+      if (typeof window !== 'undefined') {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?next=${next}`;
+      }
       return { data: null, error: 'unauthorized' };
     }
     const json = await res.json();

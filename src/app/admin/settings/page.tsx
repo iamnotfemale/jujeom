@@ -43,10 +43,6 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState('store');
 
   // PIN fields
-  const [currentPin, setCurrentPin] = useState('');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -129,35 +125,6 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Handle PIN update separately if new PIN is provided
-      let pinChanged = false;
-      if (newPin && newPin === confirmPin) {
-        if (!currentPin) {
-          setPinError('현재 PIN을 입력하세요');
-          setSaving(false);
-          return;
-        }
-        if (newPin.length < 4) {
-          setPinError('PIN은 4자리 이상이어야 합니다');
-          setSaving(false);
-          return;
-        }
-        // 현재 PIN 검증 (login API 재사용)
-        const verifyRes = await fetch('/api/admin/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pin: currentPin }),
-          credentials: 'include',
-        });
-        if (!verifyRes.ok) {
-          setPinError('현재 PIN이 올바르지 않습니다');
-          setSaving(false);
-          return;
-        }
-        pinChanged = true;
-      }
-
-      // store_settings 업데이트
       const { id: _id, ...rest } = settings;
       void _id;
       const { error } = await adminApi('/api/admin/settings', {
@@ -169,26 +136,8 @@ export default function SettingsPage() {
         setSaving(false);
         return;
       }
-
-      // PIN 변경 (별도 엔드포인트)
-      if (pinChanged) {
-        const { error: pinErr } = await adminApi('/api/admin/auth/set-pin', {
-          method: 'POST',
-          body: { newPin },
-        });
-        if (pinErr) {
-          setPinError('PIN 변경 실패');
-          setSaving(false);
-          return;
-        }
-      }
-
       setSettings(settings);
       setOriginal(settings);
-      setCurrentPin('');
-      setNewPin('');
-      setConfirmPin('');
-      setPinError(null);
       setSaved(true);
       if (savedTimer.current) clearTimeout(savedTimer.current);
       savedTimer.current = setTimeout(() => setSaved(false), 2500);
@@ -201,48 +150,6 @@ export default function SettingsPage() {
 
   const handleCancel = () => {
     setSettings(original);
-    setCurrentPin('');
-    setNewPin('');
-    setConfirmPin('');
-    setPinError(null);
-  };
-
-  const handlePinChange = async () => {
-    setPinError(null);
-    if (!currentPin) {
-      setPinError('현재 PIN을 입력하세요');
-      return;
-    }
-    if (newPin.length < 4) {
-      setPinError('PIN은 4자리 이상이어야 합니다');
-      return;
-    }
-    if (newPin !== confirmPin) {
-      setPinError('새 PIN이 일치하지 않습니다');
-      return;
-    }
-    // 현재 PIN 검증 (login API 재사용)
-    const verifyRes = await fetch('/api/admin/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pin: currentPin }),
-      credentials: 'include',
-    });
-    if (!verifyRes.ok) {
-      setPinError('현재 PIN이 올바르지 않습니다');
-      return;
-    }
-    const { error } = await adminApi('/api/admin/auth/set-pin', {
-      method: 'POST',
-      body: { newPin },
-    });
-    if (error) {
-      setPinError('PIN 변경 실패');
-      return;
-    }
-    setCurrentPin('');
-    setNewPin('');
-    setConfirmPin('');
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -732,73 +639,14 @@ export default function SettingsPage() {
               <h2 style={s.sectionTitle}>관리자 계정</h2>
             </div>
             <div style={s.card}>
-              {/* PIN hint */}
+              {/* 관리자 계정 안내 — Phase 2a 이후 Supabase Auth로 전환됨 */}
               <div style={s.pinHint}>
-                <span style={{ fontWeight: 600 }}>PIN 안내</span>
+                <span style={{ fontWeight: 600 }}>계정 관리</span>
                 <span style={{ fontSize: 12, color: 'var(--ink-500)' }}>
-                  관리자 화면 접근 시 사용되는 PIN입니다. 분실 시 DB에서 직접 초기화해야 합니다.
+                  비밀번호 변경은 Supabase Auth 기본 플로우(이메일 링크)를 사용합니다.
+                  Phase 2c에서 이 화면에 비밀번호 변경 UI가 추가될 예정입니다.
                 </span>
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                <div style={s.field}>
-                  <label style={s.label}>현재 PIN</label>
-                  <input
-                    type="password"
-                    style={s.input}
-                    value={currentPin}
-                    onChange={(e) => setCurrentPin(e.target.value)}
-                    placeholder="****"
-                    maxLength={8}
-                  />
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>새 PIN</label>
-                  <input
-                    type="password"
-                    style={s.input}
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value)}
-                    placeholder="****"
-                    maxLength={8}
-                  />
-                </div>
-                <div style={s.field}>
-                  <label style={s.label}>PIN 확인</label>
-                  <input
-                    type="password"
-                    style={{
-                      ...s.input,
-                      border: confirmPin && newPin !== confirmPin ? '1px solid var(--crim)' : '1px solid var(--border)',
-                    }}
-                    value={confirmPin}
-                    onChange={(e) => setConfirmPin(e.target.value)}
-                    placeholder="****"
-                    maxLength={8}
-                  />
-                </div>
-              </div>
-
-              {confirmPin && newPin && newPin === confirmPin && (
-                <div style={{ fontSize: 12, color: 'var(--mint)', fontWeight: 600, marginTop: 4 }}>
-                  PIN이 일치합니다
-                </div>
-              )}
-              {pinError && (
-                <div style={{ fontSize: 12, color: 'var(--crim)', fontWeight: 600, marginTop: 4 }}>
-                  {pinError}
-                </div>
-              )}
-
-              {(currentPin || newPin || confirmPin) && (
-                <button
-                  onClick={handlePinChange}
-                  className="btn btn-sm"
-                  style={{ marginTop: 8, background: 'var(--ink-900)', color: '#fff', border: 0 }}
-                >
-                  PIN 변경
-                </button>
-              )}
 
               {/* KDS auto-lock */}
               <div style={{ ...s.toggleRow, marginTop: 20 }}>

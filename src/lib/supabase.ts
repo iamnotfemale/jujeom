@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * 레거시 재수출 — 기존 `import { supabase } from '@/lib/supabase'` 호환용.
+ * 클라이언트 컴포넌트 전용. 서버 측에선 `@/lib/supabase/server` 사용.
+ */
+import { createClient } from './supabase/client';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const supabase = createClient<any>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient();
