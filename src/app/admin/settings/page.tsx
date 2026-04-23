@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import { uploadImage, getAssetPublicUrl } from '@/lib/storage';
+import { BANK_OPTIONS, normalizeBankName } from '@/lib/banks';
 import type { StoreSettings } from '@/lib/database.types';
 
 const TOC_ITEMS = [
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   is_paused: false,
   closed_message: null,
   auto_lock_kds: false,
+  serving_mode: 'pickup',
 };
 
 export default function SettingsPage() {
@@ -509,12 +511,22 @@ export default function SettingsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 12 }}>
                 <div style={s.field}>
                   <label style={s.label}>은행</label>
-                  <input
-                    style={s.input}
-                    value={settings.bank_name}
-                    onChange={(e) => update('bank_name', e.target.value)}
-                    placeholder="카카오뱅크"
-                  />
+                  {(() => {
+                    const normalized = normalizeBankName(settings.bank_name);
+                    const inList = BANK_OPTIONS.some((b) => b.code === normalized);
+                    return (
+                      <select
+                        style={{ ...s.input, appearance: 'auto' as const, paddingRight: 30 }}
+                        value={inList ? normalized : ''}
+                        onChange={(e) => update('bank_name', e.target.value)}
+                      >
+                        <option value="" disabled>은행 선택</option>
+                        {BANK_OPTIONS.map((b) => (
+                          <option key={b.code} value={b.code}>{b.label}</option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </div>
                 <div style={s.field}>
                   <label style={s.label}>계좌번호</label>
@@ -655,6 +667,60 @@ export default function SettingsPage() {
                     transform: settings.is_paused ? 'translateX(18px)' : 'translateX(0)',
                   }} />
                 </button>
+              </div>
+
+              {/* Serving mode */}
+              <div style={s.field}>
+                <label style={s.label}>
+                  조리 완료 시 수령 방식
+                  <span style={{ fontWeight: 400, color: 'var(--ink-300)', marginLeft: 6 }}>고객 알림 / 주방 버튼 라벨 반영</span>
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => update('serving_mode', 'pickup')}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--r-md)',
+                      border: settings.serving_mode === 'pickup' ? '2px solid var(--ink-900)' : '1px solid var(--border)',
+                      background: settings.serving_mode === 'pickup' ? 'var(--ink-900)' : 'var(--white)',
+                      color: settings.serving_mode === 'pickup' ? '#fff' : 'var(--ink-600)',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--f-sans)',
+                      textAlign: 'left',
+                      transition: 'all .12s ease',
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                      🏃 픽업 수령
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.4 }}>
+                      고객이 픽업대에서 직접 가져갑니다
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update('serving_mode', 'table')}
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: 'var(--r-md)',
+                      border: settings.serving_mode === 'table' ? '2px solid var(--ink-900)' : '1px solid var(--border)',
+                      background: settings.serving_mode === 'table' ? 'var(--ink-900)' : 'var(--white)',
+                      color: settings.serving_mode === 'table' ? '#fff' : 'var(--ink-600)',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--f-sans)',
+                      textAlign: 'left',
+                      transition: 'all .12s ease',
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                      🍽️ 테이블 서빙
+                    </div>
+                    <div style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.4 }}>
+                      직원이 테이블로 가져다드립니다
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -819,12 +885,12 @@ export default function SettingsPage() {
               {/* Reset all */}
               <div style={s.resetRow}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>전체 초기화 (메뉴 제외)</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>전체 초기화</div>
                   <div style={{ fontSize: 12, color: 'var(--ink-400)', marginTop: 2 }}>결제 내역 삭제 + 테이블 상태 초기화를 한 번에 수행합니다</div>
                 </div>
                 <button
                   onClick={() => setResetConfirm({
-                    type: '전체 초기화 (메뉴 제외)',
+                    type: '전체 초기화',
                     message: '모든 주문, 결제, 주문 항목이 삭제되고 테이블 상태가 초기화됩니다. 이 작업은 되돌릴 수 없습니다.',
                     onConfirm: async () => { await resetAll(); showToast('초기화 완료'); },
                   })}

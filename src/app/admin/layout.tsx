@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     {
       label: '참고',
       items: [
-        { icon: '▤', label: '주방 KDS', href: '/kitchen', external: true },
+        { icon: '▤', label: '주방', href: '/kitchen', external: true },
         { icon: '☐', label: '손님 화면', href: '/order', external: true },
         { icon: '⚙', label: '설정', href: '/admin/settings' },
       ],
@@ -193,7 +193,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div style={styles.avatar}>김</div>
             {!collapsed && (
               <div style={{ flex: 1 }}>
-                <div style={styles.footerName}>김학생회장</div>
+                <div style={styles.footerName}>고려대학교</div>
                 <div style={styles.footerRole}>운영 총괄</div>
               </div>
             )}

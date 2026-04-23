@@ -4,17 +4,19 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import type { Order, OrderItem, OrderStatus } from '@/lib/database.types';
+import type { Order, OrderItem, OrderStatus, ServingMode } from '@/lib/database.types';
 
-/* ── Status config ──────────────────────────── */
-const STATUS_MAP: Record<OrderStatus, { emoji: string; title: string; hint: string; eta: string; step: number }> = {
+/* ── Status config (serving_mode별 ready 문구 분기) ── */
+const buildStatusMap = (mode: ServingMode): Record<OrderStatus, { emoji: string; title: string; hint: string; eta: string; step: number }> => ({
   pending:   { emoji: '🔔', title: '접수 대기 중',  hint: '주문을 확인하고 있어요',       eta: '잠시만 기다려 주세요', step: 0 },
   accepted:  { emoji: '✅', title: '접수 완료!',    hint: '주문이 확인되었어요',          eta: '약 10~15분 소요',       step: 1 },
   cooking:   { emoji: '🔥', title: '조리 중',       hint: '맛있게 만들고 있어요',         eta: '곧 완성돼요!',          step: 2 },
-  ready:     { emoji: '🎉', title: '완성!',         hint: '픽업대에서 가져가세요',        eta: '',                     step: 3 },
+  ready:     mode === 'table'
+    ? { emoji: '🔔', title: '완성!',   hint: '곧 자리로 가져다드릴게요',   eta: '', step: 3 }
+    : { emoji: '🎉', title: '완성!',   hint: '픽업대에서 가져가세요',      eta: '', step: 3 },
   served:    { emoji: '😋', title: '수령 완료',     hint: '맛있게 드세요!',              eta: '',                     step: 3 },
   cancelled: { emoji: '❌', title: '주문 취소',     hint: '주문이 취소되었어요',          eta: '',                     step: -1 },
-};
+});
 const STEPS = ['접수 완료', '조리 중', '완성!'];
 const CONFETTI_COLORS = [
   '#FFE24B', '#FF5A44', '#2ECB8B', '#FFA63D', '#0064FF',
@@ -39,6 +41,7 @@ function OrderStatusPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [showReadyPopup, setShowReadyPopup] = useState(false);
+  const [servingMode, setServingMode] = useState<ServingMode>('pickup');
 
   /* ── Fetch initial data ────────────────────── */
   useEffect(() => {
@@ -53,6 +56,12 @@ function OrderStatusPage() {
     };
     fetchOrder();
     fetchItems();
+    (async () => {
+      const { data } = await supabase.from('store_settings').select('serving_mode').limit(1).single();
+      if (data?.serving_mode === 'table' || data?.serving_mode === 'pickup') {
+        setServingMode(data.serving_mode);
+      }
+    })();
   }, [orderId]);
 
   /* ── Realtime subscription ─────────────────── */
@@ -76,7 +85,8 @@ function OrderStatusPage() {
 
   /* ── Derived values ────────────────────────── */
   const status = order?.status ?? 'pending';
-  const cfg = STATUS_MAP[status];
+  const statusMap = buildStatusMap(servingMode);
+  const cfg = statusMap[status];
   const stepIndex = cfg.step; // 0-3
 
   /* progress bar width: step 0 → 0%, 1 → 33%, 2 → 66%, 3 → 100% */
@@ -333,19 +343,25 @@ function OrderStatusPage() {
               </div>
 
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--neon-ink)', marginBottom: 6 }}>
-                나왔어요! 가져가세요
+                {servingMode === 'table' ? '완성됐어요!' : '나왔어요! 가져가세요'}
               </div>
               <div style={{ fontSize: 14, color: 'var(--neon-ink)', opacity: 0.7, marginBottom: 20 }}>
-                주문하신 메뉴가 완성되었어요
+                {servingMode === 'table'
+                  ? '곧 자리로 가져다드릴게요'
+                  : '주문하신 메뉴가 완성되었어요'}
               </div>
 
-              {/* pickup zone info */}
+              {/* pickup / serving info */}
               <div style={{
                 background: 'var(--ink-900)', borderRadius: 'var(--r-md)',
                 padding: '14px 16px', color: '#fff', marginBottom: 20,
               }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-300)', marginBottom: 4 }}>픽업 위치</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>카운터 앞 픽업대</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-300)', marginBottom: 4 }}>
+                  {servingMode === 'table' ? '안내' : '픽업 위치'}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  {servingMode === 'table' ? '직원이 곧 서빙해드립니다' : '카운터 앞 픽업대'}
+                </div>
               </div>
 
               {/* close */}

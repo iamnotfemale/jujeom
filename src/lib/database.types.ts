@@ -3,6 +3,7 @@ export type PaymentStatus = 'waiting' | 'confirmed' | 'completed';
 export type TableStatus = 'empty' | 'occupied' | 'payment_pending';
 
 export type TableKind = 'table' | 'restroom' | 'kitchen';
+export type ServingMode = 'pickup' | 'table';
 
 export interface Table {
   id: number;
@@ -91,6 +92,7 @@ export interface StoreSettings {
   is_paused: boolean;
   closed_message: string | null;
   auto_lock_kds: boolean;
+  serving_mode: ServingMode;
 }
 
 export interface Database {

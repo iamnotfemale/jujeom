@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
-import type { Order, OrderItem } from '@/lib/database.types';
+import type { Order, OrderItem, ServingMode } from '@/lib/database.types';
 import PinLogin from '@/components/PinLogin';
 
 type KDSStatus = 'new' | 'cooking' | 'done' | 'served' | 'cancelled';
@@ -47,6 +47,7 @@ export default function KitchenKDSPage() {
   const [dialog, setDialog] = useState<ConfirmDialog | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [storeName, setStoreName] = useState<string>('주점');
+  const [servingMode, setServingMode] = useState<ServingMode>('pickup');
 
   useEffect(() => {
     setAuthed(sessionStorage.getItem('admin_auth') === 'true');
@@ -55,8 +56,11 @@ export default function KitchenKDSPage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from('store_settings').select('store_name').limit(1).single();
+      const { data } = await supabase.from('store_settings').select('store_name, serving_mode').limit(1).single();
       if (data?.store_name) setStoreName(data.store_name);
+      if (data?.serving_mode === 'table' || data?.serving_mode === 'pickup') {
+        setServingMode(data.serving_mode);
+      }
     })();
   }, []);
 
@@ -167,12 +171,12 @@ export default function KitchenKDSPage() {
     } else if (action === 'served') {
       setDialog({
         action: 'served',
-        label: '서빙이 완료되었습니까?',
+        label: servingMode === 'table' ? '서빙이 완료되었습니까?' : '고객이 수령했습니까?',
         ticket,
         onConfirm: async () => {
           // /api/kitchen/order-status가 payments.completed 동기화도 처리
           await updateStatus(ticket.orderId, 'served');
-          showToast(`#${ticket.orderNumber} 서빙 완료`);
+          showToast(`#${ticket.orderNumber} ${servingMode === 'table' ? '서빙 완료' : '수령 완료'}`);
           setDialog(null);
         },
       });
@@ -440,7 +444,7 @@ export default function KitchenKDSPage() {
                           onClick={() => handleAction(ticket, 'served')}
                           style={{ ...k.actionBtn, background: 'var(--mint)', color: '#fff' }}
                         >
-                          서빙 완료
+                          {servingMode === 'table' ? '서빙 완료' : '수령 완료'}
                         </button>
                       )}
                     </div>

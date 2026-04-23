@@ -11,10 +11,11 @@ function LandingContent() {
   const table = searchParams.get('table') || '1';
   const [showToast, setShowToast] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [storeName, setStoreName] = useState<string>('주점');
+  const [storeName, setStoreName] = useState<string>('');
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
-  const [welcomeText, setWelcomeText] = useState('어서 오세요, 즐거운 한 잔 되세요.');
-  const [welcomeHighlight, setWelcomeHighlight] = useState('즐거운 한 잔');
+  const [welcomeText, setWelcomeText] = useState('');
+  const [welcomeHighlight, setWelcomeHighlight] = useState('');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [orderHistory, setOrderHistory] = useState<{ id: number; order_number: string; created_at: string; status: string; items: string; final_amount: number }[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -22,11 +23,15 @@ function LandingContent() {
     (async () => {
       const { data } = await supabase.from('store_settings').select('store_name, is_open, welcome_text, welcome_highlight').limit(1).single();
       if (data) {
-        if (data.store_name) setStoreName(data.store_name);
+        setStoreName(data.store_name || '주점');
         setIsOpen(data.is_open ?? null);
-        if (data.welcome_text) setWelcomeText(data.welcome_text);
-        if (data.welcome_highlight) setWelcomeHighlight(data.welcome_highlight);
+        setWelcomeText(data.welcome_text || '어서 오세요');
+        setWelcomeHighlight(data.welcome_highlight || '');
+      } else {
+        setStoreName('주점');
+        setWelcomeText('어서 오세요');
       }
+      setSettingsLoaded(true);
     })();
   }, []);
 
@@ -81,6 +86,22 @@ function LandingContent() {
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, []);
+
+  if (!settingsLoaded) {
+    return (
+      <div
+        style={{
+          minHeight: '100dvh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--paper)',
+        }}
+      >
+        <div style={{ color: 'var(--ink-400)', fontSize: 14 }}>로딩 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -442,9 +463,7 @@ function LandingContent() {
             paddingBottom: 40,
           }}
         >
-          메뉴를 선택하고 주문하면
-          <br />
-          자리에서 바로 받으실 수 있어요.
+          방문해 주셔서 감사합니다.
         </p>
       </div>
 

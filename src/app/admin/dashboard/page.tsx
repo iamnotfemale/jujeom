@@ -81,10 +81,11 @@ export default function DashboardPage() {
         totalSales,
       });
 
-      // Fetch tables
+      // Fetch tables (실제 고객 테이블만 — 화장실/주방 블록 제외)
       const { data: tableData } = await supabase
         .from('tables')
         .select('*')
+        .eq('kind', 'table')
         .order('number', { ascending: true }) as { data: Table[] | null };
       setTables(tableData ?? []);
 

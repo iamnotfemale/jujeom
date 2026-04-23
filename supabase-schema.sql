@@ -21,7 +21,8 @@ CREATE TABLE store_settings (
   is_open BOOLEAN NOT NULL DEFAULT false,
   is_paused BOOLEAN NOT NULL DEFAULT false,
   closed_message TEXT DEFAULT '오늘 영업은 종료되었습니다.',
-  auto_lock_kds BOOLEAN NOT NULL DEFAULT true
+  auto_lock_kds BOOLEAN NOT NULL DEFAULT true,
+  serving_mode TEXT NOT NULL DEFAULT 'pickup' CHECK (serving_mode IN ('pickup', 'table'))
 );
 
 -- 기본 설정 삽입 (계좌번호/예금주는 배포 후 관리자 설정 화면에서 입력)

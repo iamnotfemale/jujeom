@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ClosedGate from '@/components/ClosedGate';
 import { useToast } from '@/components/ToastProvider';
+import { normalizeBankName } from '@/lib/banks';
 
 /* ── Types ──────────────────────────────────── */
 interface CartItem {
@@ -19,31 +20,6 @@ interface CartItem {
 
 const QUICK_TAGS = ['# 덜 맵게', '# 빨리 부탁드려요', '# 앞접시 추가', '# 물티슈 추가'];
 
-/* ── 토스 딥링크용 은행 코드 매핑 ──
- * 토스는 한글 은행명이 아닌 영문 코드를 받음.
- * 공백/별칭/약어를 포함해 매핑. 매칭 실패 시 원본을 그대로 보내 fallback. */
-const BANK_CODE_MAP: Record<string, string> = {
-  '카카오뱅크': 'KAKAO', '카카오': 'KAKAO',
-  '토스뱅크': 'TOSS', '토스': 'TOSS',
-  '케이뱅크': 'KBANK', 'K뱅크': 'KBANK',
-  'KB국민은행': 'KB', '국민은행': 'KB', '국민': 'KB',
-  '신한은행': 'SHINHAN', '신한': 'SHINHAN',
-  '우리은행': 'WOORI', '우리': 'WOORI',
-  '하나은행': 'HANA', '하나': 'HANA', 'KEB하나은행': 'HANA',
-  'IBK기업은행': 'IBK', '기업은행': 'IBK', '기업': 'IBK',
-  'NH농협은행': 'NH', '농협은행': 'NH', '농협': 'NH',
-  'SC제일은행': 'SC', '제일은행': 'SC',
-  '한국씨티은행': 'CITI', '씨티은행': 'CITI',
-  '부산은행': 'BUSAN', '대구은행': 'DAEGU', '광주은행': 'KWANGJU',
-  '전북은행': 'JEONBUK', '경남은행': 'KYONGNAM', '제주은행': 'JEJU',
-  '새마을금고': 'SAEMAUL', '신협': 'SHINHYUP', '우체국': 'POST',
-  '산업은행': 'KDB', '수협': 'SUHYUP',
-};
-
-function resolveBankCode(name: string): string {
-  const trimmed = name.trim();
-  return BANK_CODE_MAP[trimmed] ?? trimmed;
-}
 
 /* ── Component ──────────────────────────────── */
 export default function OrderConfirmPageWrapper() {
@@ -248,13 +224,16 @@ function OrderConfirmPage() {
       } catch { /* ignore */ }
 
       // Toss 딥링크 (모바일에서만)
+      // 스펙: supertoss://send?bank=<한글단축명>&accountNo=<숫자>&amount=<금액>
+      // - bank: 한글 단축형 ("국민", "카카오뱅크" 등). 잘못된 값이면 은행 선택 페이지로 빠짐.
+      // - accountNo: 하이픈/공백 제거한 숫자만
+      // - origin 파라미터는 비표준이라 전달하지 않음 (전달 시 선택 페이지로 빠질 수 있음)
       if (method === 'toss') {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
-          // 토스는 은행 코드(영문) + 숫자만 있는 계좌번호를 기대
-          const bankCode = resolveBankCode(bankName);
-          const cleanAccountNo = accountNo.replace(/\D/g, ''); // 하이픈·공백 제거
-          window.location.href = `supertoss://send?bank=${encodeURIComponent(bankCode)}&accountNo=${cleanAccountNo}&amount=${row.total}&origin=${encodeURIComponent(storeName)}`;
+          const bank = normalizeBankName(bankName);
+          const cleanAccountNo = accountNo.replace(/\D/g, '');
+          window.location.href = `supertoss://send?bank=${encodeURIComponent(bank)}&accountNo=${cleanAccountNo}&amount=${row.total}`;
         }
         // 데스크톱: 그냥 redirect
       }
