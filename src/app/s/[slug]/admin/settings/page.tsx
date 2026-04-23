@@ -81,121 +81,159 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 780, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>설정</h1>
+    <div style={s.wrap}>
+      <div style={s.inner}>
+        <header style={s.header}>
+          <h1 style={s.h1}>설정</h1>
+          <p style={s.sub}>이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
+        </header>
 
-      <Section title="01 · 가게 정보">
-        <Row label="가게 이름">
-          <input value={form.name} onChange={(e) => update('name', e.target.value)} style={s.input} />
-        </Row>
-        <Row label="slug (URL)">
-          <input value={store.slug} disabled style={{ ...s.input, opacity: 0.6 }} />
-        </Row>
-      </Section>
+        <Section num="01" title="가게 정보">
+          <Row label="가게 이름">
+            <input
+              value={form.name}
+              onChange={(e) => update('name', e.target.value)}
+              style={s.input}
+            />
+          </Row>
+          <Row label="slug (URL)">
+            <input value={store.slug} disabled style={{ ...s.input, ...s.inputDisabled }} />
+          </Row>
+        </Section>
 
-      <Section title="02 · 결제 정보">
-        <Row label="은행">
-          <select value={form.bank_name} onChange={(e) => update('bank_name', e.target.value)} style={s.input}>
-            <option value="">선택</option>
-            {BANK_OPTIONS.map((b) => (
-              <option key={b.code} value={b.code}>{b.label}</option>
-            ))}
-          </select>
-        </Row>
-        <Row label="계좌번호">
-          <input
-            value={form.account_number}
-            onChange={(e) => update('account_number', e.target.value)}
-            placeholder="예: 123-456-789012"
-            style={s.input}
-          />
-        </Row>
-        <Row label="토스 QR 링크 (선택)">
-          <input
-            value={form.toss_qr_url}
-            onChange={(e) => update('toss_qr_url', e.target.value)}
-            placeholder="https://toss.me/..."
-            style={s.input}
-          />
-        </Row>
-      </Section>
+        <Section num="02" title="결제 정보">
+          <Row label="은행">
+            <select
+              value={form.bank_name}
+              onChange={(e) => update('bank_name', e.target.value)}
+              style={s.input}
+            >
+              <option value="">선택하세요</option>
+              {BANK_OPTIONS.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label="계좌번호">
+            <input
+              value={form.account_number}
+              onChange={(e) => update('account_number', e.target.value)}
+              placeholder="예: 123-456-789012"
+              style={s.input}
+            />
+          </Row>
+          <Row label="토스 QR 링크 (선택)">
+            <input
+              value={form.toss_qr_url}
+              onChange={(e) => update('toss_qr_url', e.target.value)}
+              placeholder="https://toss.me/..."
+              style={s.input}
+            />
+          </Row>
+        </Section>
 
-      <Section title="03 · 영업 설정">
-        <Row label="영업 중">
-          <Toggle checked={form.is_open} onChange={(v) => update('is_open', v)} />
-        </Row>
-        <Row label="주문 일시 중지">
-          <Toggle checked={form.is_paused} onChange={(v) => update('is_paused', v)} />
-        </Row>
-        <Row label="서빙 방식">
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['pickup', 'table'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => update('serving_mode', m)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: '1px solid var(--border, #2a3150)',
-                  background: form.serving_mode === m ? 'var(--accent, #3B82F6)' : 'transparent',
-                  color: form.serving_mode === m ? '#fff' : 'var(--text-2)',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                }}
-              >
-                {m === 'pickup' ? '픽업' : '테이블 서빙'}
-              </button>
-            ))}
+        <Section num="03" title="영업 설정">
+          <Row label="영업 중">
+            <Toggle checked={form.is_open} onChange={(v) => update('is_open', v)} />
+          </Row>
+          <Row label="주문 일시 중지">
+            <Toggle checked={form.is_paused} onChange={(v) => update('is_paused', v)} />
+          </Row>
+          <Row label="서빙 방식">
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(
+                [
+                  { key: 'pickup' as const, label: '픽업', hint: '손님이 픽업대에서 가져감' },
+                  { key: 'table' as const, label: '테이블 서빙', hint: '직원이 테이블로 가져다줌' },
+                ]
+              ).map((m) => {
+                const active = form.serving_mode === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => update('serving_mode', m.key)}
+                    style={{
+                      padding: '10px 16px',
+                      borderRadius: 'var(--r-md)',
+                      border: active ? '2px solid var(--ink-900)' : '1px solid var(--border)',
+                      background: active ? 'var(--neon)' : 'var(--surface)',
+                      color: active ? 'var(--neon-ink)' : 'var(--ink-700)',
+                      cursor: 'pointer',
+                      fontWeight: active ? 800 : 600,
+                      fontSize: 14,
+                      fontFamily: 'var(--f-sans)',
+                      transition: 'all .1s ease',
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Row>
+        </Section>
+
+        <Section num="04" title="데이터 초기화">
+          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
+            축제 전 연습·테스트 데이터를 지울 때 사용하세요. <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => resetData('payments')} className="btn btn-ghost btn-sm">
+              결제·주문 초기화
+            </button>
+            <button type="button" onClick={() => resetData('tables')} className="btn btn-ghost btn-sm">
+              테이블 초기화
+            </button>
+            <button type="button" onClick={() => resetData('all')} className="btn btn-danger btn-sm">
+              전체 초기화
+            </button>
           </div>
-        </Row>
-      </Section>
+        </Section>
 
-      <Section title="04 · 데이터 초기화">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => resetData('payments')} style={s.btnGhost}>
-            결제·주문 초기화
-          </button>
-          <button type="button" onClick={() => resetData('tables')} style={s.btnGhost}>
-            테이블 초기화
-          </button>
-          <button type="button" onClick={() => resetData('all')} style={s.btnDanger}>
-            전체 초기화
+        <div style={s.saveBar}>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="btn btn-accent"
+            style={{ minWidth: 140 }}
+          >
+            {saving ? '저장 중…' : '저장'}
           </button>
         </div>
-      </Section>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 32 }}>
-        <button type="button" onClick={handleSave} disabled={saving} style={s.btnPrimary}>
-          {saving ? '저장 중…' : '저장'}
-        </button>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  num,
+  title,
+  children,
+}: {
+  num: string;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section
-      style={{
-        marginBottom: 28,
-        padding: 20,
-        background: 'var(--bg-2, #fff)',
-        borderRadius: 12,
-        border: '1px solid var(--border, #e5e7eb)',
-      }}
-    >
-      <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', marginBottom: 14 }}>{title}</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
+    <section style={sect.wrap}>
+      <header style={sect.head}>
+        <span style={sect.num}>{num}</span>
+        <h2 style={sect.title}>{title}</h2>
+      </header>
+      <div style={sect.body}>{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center', gap: 12 }}>
-      <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{label}</span>
-      <div>{children}</div>
+    <label style={row.wrap}>
+      <span style={row.label}>{label}</span>
+      <div style={row.field}>{children}</div>
     </label>
   );
 }
@@ -206,26 +244,27 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       type="button"
       onClick={() => onChange(!checked)}
       style={{
-        width: 42,
-        height: 24,
-        borderRadius: 999,
+        width: 44,
+        height: 26,
+        borderRadius: 'var(--r-pill)',
         border: 'none',
-        background: checked ? 'var(--accent, #3B82F6)' : '#c9ccd6',
+        background: checked ? 'var(--ink-900)' : 'var(--ink-200)',
         position: 'relative',
         cursor: 'pointer',
         transition: 'background .15s',
       }}
+      aria-pressed={checked}
     >
       <span
         style={{
           position: 'absolute',
-          top: 2,
-          left: checked ? 20 : 2,
+          top: 3,
+          left: checked ? 21 : 3,
           width: 20,
           height: 20,
           borderRadius: '50%',
-          background: '#fff',
-          boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+          background: checked ? 'var(--neon)' : '#fff',
+          boxShadow: '0 1px 3px rgba(14,18,32,.2)',
           transition: 'left .15s',
         }}
       />
@@ -234,39 +273,72 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 }
 
 const s: Record<string, React.CSSProperties> = {
+  wrap: { minHeight: '100%', background: 'var(--bg)', padding: '32px 32px 80px' },
+  inner: { maxWidth: 780, margin: '0 auto' },
+  header: { marginBottom: 28 },
+  h1: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: 'var(--ink-900)',
+    letterSpacing: '-0.02em',
+    marginBottom: 6,
+  },
+  sub: { fontSize: 14, color: 'var(--text-2)' },
   input: {
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid var(--border, #d1d5db)',
-    fontSize: 14,
     width: '100%',
-  },
-  btnPrimary: {
-    padding: '10px 20px',
-    borderRadius: 8,
-    border: 'none',
-    background: 'var(--accent, #3B82F6)',
-    color: '#fff',
+    padding: '10px 12px',
+    borderRadius: 'var(--r-md)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--ink-900)',
     fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
+    fontFamily: 'var(--f-sans)',
+    outline: 'none',
   },
-  btnGhost: {
-    padding: '8px 14px',
-    borderRadius: 8,
-    border: '1px solid var(--border, #d1d5db)',
-    background: 'transparent',
-    fontSize: 13,
-    cursor: 'pointer',
+  inputDisabled: {
+    background: 'var(--ink-050)',
+    color: 'var(--text-3)',
+    cursor: 'not-allowed',
   },
-  btnDanger: {
-    padding: '8px 14px',
-    borderRadius: 8,
-    border: '1px solid var(--crim, #dc2626)',
-    background: 'var(--crim, #dc2626)',
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
+  saveBar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: 28,
+    paddingTop: 20,
+    borderTop: '1px solid var(--border)',
   },
+};
+
+const sect: Record<string, React.CSSProperties> = {
+  wrap: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r-lg)',
+    padding: 24,
+    marginBottom: 20,
+    boxShadow: 'var(--shadow-1)',
+  },
+  head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 },
+  num: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--text-3)',
+    fontVariantNumeric: 'tabular-nums',
+    padding: '3px 8px',
+    background: 'var(--ink-050)',
+    borderRadius: 'var(--r-sm)',
+  },
+  title: { fontSize: 16, fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.01em' },
+  body: { display: 'flex', flexDirection: 'column', gap: 14 },
+};
+
+const row: Record<string, React.CSSProperties> = {
+  wrap: {
+    display: 'grid',
+    gridTemplateColumns: '160px 1fr',
+    alignItems: 'center',
+    gap: 16,
+  },
+  label: { fontSize: 13, fontWeight: 600, color: 'var(--text-2)' },
+  field: {},
 };
