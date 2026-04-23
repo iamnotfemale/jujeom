@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
-import { useAdminStoreName } from '../layout';
+import { useAdminStoreName } from '../AdminShell';
 import { useStore } from '../../StoreProvider';
 import type { Order, Table, Payment, OrderItem } from '@/lib/database.types';
 

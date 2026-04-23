@@ -19,7 +19,9 @@ export async function proxy(request: NextRequest) {
     path.startsWith('/admin') ||
     path.startsWith('/kitchen') ||
     path === '/dashboard' ||
-    path.startsWith('/dashboard/');
+    path.startsWith('/dashboard/') ||
+    /^\/s\/[^/]+\/admin(\/|$)/.test(path) ||
+    /^\/s\/[^/]+\/kitchen(\/|$)/.test(path);
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();

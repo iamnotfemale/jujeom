@@ -2,15 +2,14 @@ import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase-server';
 import { getStoreBySlug } from '@/lib/require-store-role';
-import AdminShell, { type AdminRole } from './AdminShell';
 
 /**
- * /s/[slug]/admin/* 가드.
- * - 비로그인: /login?next=... 으로 리디렉트
- * - 로그인했지만 이 가게 멤버가 아님: /dashboard 로 리디렉트
- * - 멤버: AdminShell 렌더링 + 유저 이메일·역할 전달
+ * /s/[slug]/kitchen 가드.
+ * - 비로그인: /login?next=... 으로
+ * - 이 가게 멤버 아님: /dashboard 로
+ * - kitchen 이상 역할: 통과 (page.tsx 렌더)
  */
-export default async function AdminLayout({
+export default async function KitchenLayout({
   children,
   params,
 }: {
@@ -24,7 +23,7 @@ export default async function AdminLayout({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(`/s/${slug}/admin/dashboard`)}`);
+    redirect(`/login?next=${encodeURIComponent(`/s/${slug}/kitchen`)}`);
   }
 
   const store = await getStoreBySlug(slug);
@@ -37,14 +36,9 @@ export default async function AdminLayout({
     .eq('user_id', user.id)
     .maybeSingle();
 
-  const role = (member as { role?: AdminRole } | null)?.role;
-  if (!role) {
+  if (!member) {
     redirect('/dashboard');
   }
 
-  return (
-    <AdminShell userEmail={user.email ?? ''} role={role}>
-      {children}
-    </AdminShell>
-  );
+  return <>{children}</>;
 }
