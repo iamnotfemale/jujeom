@@ -160,7 +160,7 @@ export default function DashboardClient({
         {/* ── 헤더 ── */}
         <header className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">🎉</div>
+            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] flex items-center justify-center text-[22px]" style={{ background: 'var(--neon)' }}>🎉</div>
             <div>
               <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 주점</div>
               <div className="text-xs text-[var(--text-3)] mt-[2px]">{userEmail}</div>
@@ -394,7 +394,7 @@ function StoreBoothCard({
         </div>
 
         {/* 영업 상태 */}
-        <div className="flex gap-[6px] items-center text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>
+        <div className="flex gap-[6px] items-center text-[11px] font-semibold mt-auto" style={{ color: 'var(--text-2)' }}>
           <span
             className="w-[6px] h-[6px] rounded-full shrink-0"
             style={{ background: isOpen ? 'var(--mint)' : 'var(--ink-300)' }}

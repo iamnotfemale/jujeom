@@ -40,7 +40,7 @@ function LoginForm() {
         className="w-full max-w-[400px] bg-[var(--surface)] rounded-[var(--r-xl)] px-7 py-8 flex flex-col gap-2 shadow-[var(--shadow-2)] border border-[var(--border)]"
       >
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">
+          <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] flex items-center justify-center text-[22px]" style={{ background: 'var(--neon)' }}>
             🎉
           </div>
           <div>
