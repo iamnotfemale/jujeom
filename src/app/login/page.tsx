@@ -3,7 +3,6 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { serverSignIn } from '@/app/actions/auth';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -18,13 +17,19 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    // 서버 액션: 서버에서 signInWithPassword 실행 → 쿠키 HTTP 응답에 포함 → redirect
-    const result = await serverSignIn(email, password, next);
-    // redirect() 호출 시 result는 반환되지 않음. 에러만 반환됨
-    if (result?.error) {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
       setLoading(false);
-      setError(mapLoginError(result.error));
+      setError(mapLoginError(data.error || '로그인 중 오류가 발생했습니다.'));
+      return;
     }
+    // Route Handler가 Set-Cookie를 HTTP 응답에 포함 → fetch가 쿠키 저장 → 전체 네비게이션
+    window.location.href = next;
   };
 
   return (

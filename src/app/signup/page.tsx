@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { serverSignUp } from '@/app/actions/auth';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -20,15 +19,23 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const result = await serverSignUp(email, password);
-    if (result?.error) {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
       setLoading(false);
-      setError(result.error);
-    } else if (result?.info) {
-      setLoading(false);
-      setInfo(result.info);
+      setError(data.error || '가입 중 오류가 발생했습니다.');
+      return;
     }
-    // 세션이 즉시 발급된 경우 server action 내부에서 redirect('/dashboard') 처리
+    if (data.redirect) {
+      window.location.href = data.redirect;
+      return;
+    }
+    setLoading(false);
+    setInfo(data.info || '가입 완료! 이메일로 보낸 확인 링크를 클릭해 주세요.');
   };
 
   return (
