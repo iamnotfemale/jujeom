@@ -167,7 +167,9 @@ export default function DashboardClient({
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            <Link href="/auth/logout" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>로그아웃</Link>
+            <form action="/auth/logout" method="post">
+              <button type="submit" className="btn btn-ghost btn-sm">로그아웃</button>
+            </form>
             <button
               type="button"
               disabled={!canCreate}

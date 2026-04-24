@@ -246,8 +246,9 @@ export default function KitchenKDSPage() {
     return map[status] ?? { bg: 'var(--ink-400)', label: status };
   };
 
-  const handleLogout = () => {
-    window.location.href = '/auth/logout';
+  const handleLogout = async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
   };
 
   return (

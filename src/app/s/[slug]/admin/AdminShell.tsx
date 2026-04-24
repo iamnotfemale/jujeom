@@ -134,8 +134,9 @@ export default function AdminShell({
     };
   }, []);
 
-  const handleLogout = () => {
-    window.location.href = '/auth/logout';
+  const handleLogout = async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
   };
 
   const showLabel = isMobile ? true : !collapsed;
