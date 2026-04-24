@@ -218,7 +218,7 @@ export default function DashboardPage() {
       {/* Alert banner */}
       {stats.pendingPayments > 0 && (
         <Link
-          href={`/s/${store.slug}/admin/payments`}
+          href={`/s/${store.slug}/admin/payments?filter=waiting`}
           className="flex items-center gap-[10px] py-3 px-[18px] rounded-[var(--r-md)] text-[#8e0f0f] text-sm font-medium no-underline mb-5 transition-[background_.12s_ease]"
           style={{
             background: 'color-mix(in oklab, var(--crim) 8%, white)',

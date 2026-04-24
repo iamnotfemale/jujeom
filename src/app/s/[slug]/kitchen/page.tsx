@@ -28,6 +28,8 @@ interface ConfirmDialog {
   onConfirm: () => void;
 }
 
+const AUTO_LOCK_MINUTES = 10;
+
 const statusMap: Record<string, KDSStatus> = {
   accepted: 'new',
   cooking: 'cooking',
@@ -93,7 +95,7 @@ export default function KitchenKDSPage() {
           note: o.note ?? null,
           items: itemsMap[o.id] ?? [],
           createdAt: o.created_at,
-          updatedAt: o.created_at,
+          updatedAt: o.updated_at,
         }))
       );
     } catch (err) {
@@ -212,7 +214,10 @@ export default function KitchenKDSPage() {
 
   // Active tickets exclude served/cancelled; completed tickets are served/cancelled
   const activeTickets = tickets.filter((t) => t.status !== 'served' && t.status !== 'cancelled');
-  const completedTickets = tickets.filter((t) => t.status === 'served' || t.status === 'cancelled');
+  const allCompletedTickets = tickets.filter((t) => t.status === 'served' || t.status === 'cancelled');
+  const completedTickets = store.auto_lock_kds
+    ? allCompletedTickets.filter((t) => (now - new Date(t.updatedAt).getTime()) / 60000 < AUTO_LOCK_MINUTES)
+    : allCompletedTickets;
 
   const filtered = (() => {
     if (filter === '전체') return activeTickets;
@@ -227,7 +232,7 @@ export default function KitchenKDSPage() {
     new: activeTickets.filter((t) => t.status === 'new').length,
     cooking: activeTickets.filter((t) => t.status === 'cooking').length,
     done: activeTickets.filter((t) => t.status === 'done').length,
-    completed: completedTickets.length,
+    completed: allCompletedTickets.length,
   };
 
   const statusRibbon = (status: KDSStatus) => {
@@ -271,6 +276,15 @@ export default function KitchenKDSPage() {
             </div>
           </div>
           <div style={k.topRight}>
+            {store.auto_lock_kds && (
+              <div style={{
+                ...k.wakeHint,
+                background: 'color-mix(in oklab, var(--mint) 20%, var(--ink-900))',
+                color: 'var(--mint)',
+              }}>
+                <span style={{ fontSize: 12 }}>자동 잠금 ON ({AUTO_LOCK_MINUTES}분)</span>
+              </div>
+            )}
             <div style={{
               ...k.wakeHint,
               background: wakeLockActive

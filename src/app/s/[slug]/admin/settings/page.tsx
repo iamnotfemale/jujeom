@@ -388,20 +388,22 @@ export default function SettingsPage() {
 
         {/* 데이터 초기화 */}
         <SectionCard id="reset" title="데이터 초기화">
-          <p style={s.resetDesc}>
-            축제 전 연습·테스트 데이터를 지울 때 사용하세요.{' '}
-            <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
-          </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" onClick={() => resetData('payments')} className="btn btn-ghost btn-sm">
-              결제·주문 초기화
-            </button>
-            <button type="button" onClick={() => resetData('tables')} className="btn btn-ghost btn-sm">
-              테이블 초기화
-            </button>
-            <button type="button" onClick={() => resetData('all')} className="btn btn-danger btn-sm">
-              전체 초기화
-            </button>
+          <div style={{ padding: '16px 20px 20px' }}>
+            <p style={s.resetDesc}>
+              축제 전 연습·테스트 데이터를 지울 때 사용하세요.{' '}
+              <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => resetData('payments')} className="btn btn-ghost btn-sm">
+                결제·주문 초기화
+              </button>
+              <button type="button" onClick={() => resetData('tables')} className="btn btn-ghost btn-sm">
+                테이블 초기화
+              </button>
+              <button type="button" onClick={() => resetData('all')} className="btn btn-danger btn-sm">
+                전체 초기화
+              </button>
+            </div>
           </div>
         </SectionCard>
 
@@ -409,16 +411,16 @@ export default function SettingsPage() {
         <div style={{ height: 120 }} />
       </div>
 
-      {/* Fixed bottom save bar — shown only when there are unsaved changes */}
+      {/* Floating save pill — shown only when there are unsaved changes */}
       {dirty && (
         <div style={s.saveBar}>
-          <span style={s.saveBarMsg}>저장하지 않은 변경사항이 있습니다</span>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <span style={s.saveBarMsg}>저장하지 않은 변경사항</span>
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="button"
               onClick={handleRevert}
               disabled={saving}
-              className="btn btn-ghost btn-sm"
+              style={s.revertBtn}
             >
               되돌리기
             </button>
@@ -426,8 +428,7 @@ export default function SettingsPage() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="btn btn-accent btn-sm"
-              style={{ minWidth: 80 }}
+              style={s.saveBtn}
             >
               {saving ? '저장 중…' : '저장'}
             </button>
@@ -623,22 +624,47 @@ const s: Record<string, React.CSSProperties> = {
   },
   saveBar: {
     position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 64,
-    background: 'var(--ink-900)',
+    bottom: 24,
+    left: '50%',
+    transform: 'translateX(-50%)',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 28px',
+    gap: 16,
+    padding: '10px 12px 10px 20px',
+    borderRadius: 999,
+    background: 'var(--ink-900)',
+    boxShadow: '0 8px 32px rgba(14,18,32,.35)',
     zIndex: 100,
-    boxShadow: '0 -2px 16px rgba(14,18,32,.18)',
+    whiteSpace: 'nowrap',
   },
   saveBarMsg: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 600,
-    color: 'rgba(255,255,255,.8)',
+    color: 'rgba(255,255,255,.75)',
+  },
+  revertBtn: {
+    height: 34,
+    padding: '0 14px',
+    borderRadius: 999,
+    border: '1px solid rgba(255,255,255,.2)',
+    background: 'transparent',
+    color: 'rgba(255,255,255,.7)',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'var(--f-sans)',
+  },
+  saveBtn: {
+    height: 34,
+    padding: '0 18px',
+    borderRadius: 999,
+    border: 'none',
+    background: 'var(--neon)',
+    color: 'var(--neon-ink)',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontFamily: 'var(--f-sans)',
   },
 };
 

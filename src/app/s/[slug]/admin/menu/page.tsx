@@ -6,6 +6,7 @@ import { adminApi } from '@/lib/admin-api';
 import { uploadImage } from '@/lib/storage';
 import type { Menu } from '@/lib/database.types';
 import { useConfirm } from '@/components/ConfirmProvider';
+import { useToast } from '@/components/ToastProvider';
 import { useStore } from '../../StoreProvider';
 import { formatPrice } from '@/lib/formatters';
 import { useAdminRole } from '../AdminShell';
@@ -64,6 +65,7 @@ export default function MenuManagementPage() {
   const store = useStore();
   const myRole = useAdminRole();
   const { confirm: showConfirm } = useConfirm();
+  const { showToast } = useToast();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('전체');
@@ -122,8 +124,8 @@ export default function MenuManagementPage() {
       body: { id: menu.id, is_sold_out: next },
     });
     if (error) {
-      // 롤백
       setMenus((prev) => prev.map((m) => (m.id === menu.id ? { ...m, is_sold_out: !next } : m)));
+      showToast('품절 상태 변경에 실패했습니다.', 'error');
     }
   };
 

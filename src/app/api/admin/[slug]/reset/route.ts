@@ -24,16 +24,18 @@ export async function POST(
 
   const storeId = check.store.id;
 
-  if (type === 'payments' || type === 'all') {
+  if (type === 'payments') {
     await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
     await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
     await supabaseAdmin.from('tables').update({ status: 'empty' }).eq('store_id', storeId);
-  }
-  if (type === 'tables' || type === 'all') {
+  } else if (type === 'tables') {
+    await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
     await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
     await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
-  }
-  if (type === 'all') {
+  } else if (type === 'all') {
+    await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
+    await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
+    await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
     await supabaseAdmin.from('menus').delete().eq('store_id', storeId);
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import type { Order, Payment, OrderItem } from '@/lib/database.types';
@@ -32,12 +33,25 @@ const FLOW_STEPS = [
   '서빙 완료',
 ];
 
-export default function PaymentsPage() {
+export default function PaymentsPageWrapper() {
+  return (
+    <Suspense fallback={null}>
+      <PaymentsPage />
+    </Suspense>
+  );
+}
+
+function PaymentsPage() {
   const store = useStore();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterTab>('전체');
+  const [filter, setFilter] = useState<FilterTab>(() => {
+    const p = searchParams.get('filter');
+    if (p === 'waiting') return '입금 대기';
+    return '전체';
+  });
   const [now, setNow] = useState(() => Date.now());
   const [toast, setToast] = useState<string | null>(null);
   const [detailRow, setDetailRow] = useState<PaymentRow | null>(null);
@@ -92,7 +106,7 @@ export default function PaymentsPage() {
           tableId: o.table_id,
           tableNumber: o.table_number,
           customerName: payMap[o.id]?.customer_name ?? null,
-          customerPhone: null,
+          customerPhone: payMap[o.id]?.customer_phone ?? null,
           items: itemsMap[o.id] ?? '-',
           amount: o.final_amount,
           paymentStatus: (payMap[o.id]?.status ?? 'waiting') as PaymentRow['paymentStatus'],
@@ -159,10 +173,15 @@ export default function PaymentsPage() {
     fetchData();
   };
 
+  const csvCell = (v: string | number | null | undefined): string => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+
   const exportCSV = () => {
     const header = '주문번호,테이블,이름,연락처,주문내역,금액,상태,주문시간\n';
     const body = filtered.map((r) =>
-      [r.orderNumber, r.tableNumber, r.customerName ?? '', r.customerPhone ?? '', `"${r.items}"`, r.amount, r.paymentStatus, r.createdAt].join(',')
+      [r.orderNumber, r.tableNumber, csvCell(r.customerName), csvCell(r.customerPhone), csvCell(r.items), r.amount, r.paymentStatus, r.createdAt].join(',')
     ).join('\n');
     const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);

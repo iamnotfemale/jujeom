@@ -1,5 +1,5 @@
 export type OrderStatus = 'pending' | 'accepted' | 'cooking' | 'ready' | 'served' | 'cancelled';
-export type PaymentStatus = 'waiting' | 'confirmed' | 'completed';
+export type PaymentStatus = 'waiting' | 'confirmed' | 'completed' | 'cancelled';
 export type TableStatus = 'empty' | 'occupied' | 'payment_pending';
 
 export type TableKind = 'table' | 'restroom' | 'kitchen';

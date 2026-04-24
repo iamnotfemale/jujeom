@@ -36,6 +36,7 @@ function OrderConfirmPage() {
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   const storeName = store.name;
@@ -165,6 +166,7 @@ function OrderConfirmPage() {
           options: it.options ?? null,
         })),
         p_customer_name: customerName.trim(),
+        p_customer_phone: customerPhone.trim() || null,
         p_method: method,
         p_note: note.trim() || null,
       });
@@ -187,6 +189,8 @@ function OrderConfirmPage() {
           menu_not_found: '존재하지 않는 메뉴가 포함되어 있습니다.',
           menu_sold_out: '품절된 메뉴가 있습니다. 장바구니를 확인해 주세요.',
           insufficient_stock: '재고가 부족한 메뉴가 있습니다.',
+          items_required: '주문 항목이 없습니다. 메뉴를 선택해 주세요.',
+          invalid_quantity: '수량이 올바르지 않습니다.',
         };
         const friendly =
           codeToMsg[err.message ?? ''] ||
@@ -255,7 +259,10 @@ function OrderConfirmPage() {
           <div className="px-4 py-[14px] border-b border-[var(--border)] font-bold text-[15px]">
             주문 내역 <span className="text-[var(--text-3)] font-medium">({items.length})</span>
           </div>
-          {items.length === 0 && (
+          {!hydrated && (
+            <div className="px-4 py-10 text-center text-[var(--text-3)] text-sm">불러오는 중...</div>
+          )}
+          {hydrated && items.length === 0 && (
             <div className="px-4 py-10 text-center text-[var(--text-3)] text-sm flex flex-col items-center gap-3">
               <span>장바구니가 비어 있어요. 메뉴를 먼저 선택해 주세요.</span>
               <Link
@@ -360,6 +367,16 @@ function OrderConfirmPage() {
               className="w-full border border-[var(--border)] rounded-[var(--r-md)] py-[10px] px-3 text-sm font-[var(--f-sans)] text-[var(--text)] bg-[var(--surface-2)] outline-none"
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[13px] font-semibold text-[var(--text-2)]">연락처 <span className="text-[var(--ink-400)] font-normal">(선택)</span></label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={e => setCustomerPhone(e.target.value)}
+              placeholder="010-0000-0000"
+              className="w-full border border-[var(--border)] rounded-[var(--r-md)] py-[10px] px-3 text-sm font-[var(--f-sans)] text-[var(--text)] bg-[var(--surface-2)] outline-none"
+            />
+          </div>
         </section>
       </main>
 
@@ -371,11 +388,11 @@ function OrderConfirmPage() {
         {/* toss button */}
         <button
           className="btn btn-lg btn-block"
-          disabled={items.length === 0 || submitting || !customerName.trim()}
+          disabled={!hydrated || items.length === 0 || submitting || !customerName.trim()}
           onClick={() => submitOrder('toss')}
           style={{
             background: '#0064FF', color: '#fff', gap: 8,
-            opacity: (items.length === 0 || !customerName.trim()) ? 0.4 : 1,
+            opacity: (!hydrated || items.length === 0 || !customerName.trim()) ? 0.4 : 1,
           }}
         >
           <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-[6px] bg-white text-[#0064FF] font-extrabold text-sm leading-none">t</span>
@@ -385,9 +402,9 @@ function OrderConfirmPage() {
         {/* transfer button */}
         <button
           className="btn btn-ghost btn-block"
-          disabled={items.length === 0 || submitting || !customerName.trim()}
+          disabled={!hydrated || items.length === 0 || submitting || !customerName.trim()}
           onClick={() => setShowTransferModal(true)}
-          style={{ opacity: (items.length === 0 || !customerName.trim()) ? 0.4 : 1 }}
+          style={{ opacity: (!hydrated || items.length === 0 || !customerName.trim()) ? 0.4 : 1 }}
         >
           계좌이체로 결제
         </button>

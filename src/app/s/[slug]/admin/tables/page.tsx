@@ -389,7 +389,12 @@ export default function TablesPage() {
       body: { id: tableId, status: newStatus },
     });
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: newStatus as TableStatus } : t));
-    showToast(newStatus === 'empty' ? '빈 테이블로 변경' : '사용 중으로 변경');
+    const toastMsg: Record<string, string> = {
+      empty: '빈 테이블로 변경',
+      occupied: '사용 중으로 변경',
+      payment_pending: '입금 대기로 변경',
+    };
+    showToast(toastMsg[newStatus] ?? '상태 변경 완료');
   };
 
   /* ── QR download ─────────────────────── */
@@ -844,6 +849,16 @@ export default function TablesPage() {
                         }}
                       >
                         사용 중
+                      </button>
+                      <button
+                        onClick={() => toggleTableStatus(selectedTable.id, 'payment_pending')}
+                        style={{
+                          flex: 1, padding: '10px 16px', fontSize: 13, fontWeight: 600, border: 0, cursor: 'pointer',
+                          background: selectedTable.status === 'payment_pending' ? 'var(--amber)' : 'var(--white)',
+                          color: selectedTable.status === 'payment_pending' ? '#fff' : 'var(--ink-500)',
+                        }}
+                      >
+                        입금 대기
                       </button>
                     </div>
                   </div>
