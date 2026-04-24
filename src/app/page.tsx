@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: '차림 · 대학 축제 주점을 위한 QR 주문 플랫폼',
   description:
-    '주점 운영, 이제 QR 하나로. QR 주문·토스 송금·실시간 주방 관리까지. 학생회·동아리를 위한 축제 주점 운영 도구.',
+    '주점 운영. QR 주문·토스 송금·실시간 주방 관리까지. 학생회·동아리를 위한 축제 주점 운영 도구.',
 };
 
 export default function LandingPage() {
@@ -398,10 +398,10 @@ export default function LandingPage() {
       <section className="hero">
         <div className="container hero-grid">
           <div>
-            <span className="eyebrow">대학 축제 주점 운영 도구</span>
+            <span className="eyebrow">대학 축제 주점 운영 서비스</span>
             <h1 className="lp-h1" style={{ marginTop: 18, fontWeight: 800 }}>
               주점 운영,<br />
-              이제 <em>QR 하나로.</em>
+              이제 차림으로
             </h1>
             <p className="sub lp-p">
               대학교 주점 운영,{' '}
@@ -487,7 +487,7 @@ export default function LandingPage() {
               <span className="eyebrow" style={{ color: '#8A91A5' }}>CORE FEATURES</span>
               <h2 className="lp-h2" style={{ marginTop: 14 }}>주점 하나에 필요한 전부,<br />3개 스텝으로 끝.</h2>
             </div>
-            <p className="lp-p">주문·결제·주방을 하나로 묶어 학생회가 '운영'이 아니라 '축제'에 집중할 수 있도록 만들었어요.</p>
+            <p className="lp-p">주문·결제·주방을 하나로 묶어 <br />'운영'이 아니라 '축제'에 집중할 수 있도록 만들었어요.</p>
           </div>
 
           <div className="fgrid">
@@ -498,7 +498,7 @@ export default function LandingPage() {
               <div className="fvis">
                 <div className="vis-qr"><span className="cr"></span></div>
               </div>
-              <p className="fbody">테이블마다 붙은 QR을 찍으면 앱 설치 없이 바로 메뉴 화면으로. 손님은 고르기만, 서빙은 들고 오기만.</p>
+              <p className="fbody">테이블마다 붙은 QR을 찍으면 앱 설치 없이 바로 메뉴 화면으로.</p>
               <div className="fchips">
                 <span className="fchip">설치 불필요</span>
                 <span className="fchip">테이블별 QR</span>
@@ -522,7 +522,8 @@ export default function LandingPage() {
               </div>
               <p className="fbody">계좌를 한 번 등록하면, 손님들의 결제가 쉬워져요. Toss를 이용해 3초 만에 입금할 수 있어요.</p>
               <div className="fchips">
-                <span className="fchip">미확인 필터</span>
+                <span className="fchip">송금 확인 필터</span>
+                <span className="fchip">계좌이체도 가능</span>
               </div>
             </div>
 
@@ -673,23 +674,22 @@ export default function LandingPage() {
           <div className="faq-intro">
             <span className="eyebrow">FAQ · 문의</span>
             <h2 className="lp-h2" style={{ marginTop: 14 }}>쓰다가 막히셨나요?<br />언제든 물어보세요.</h2>
-            <p className="lp-p">학생 프로젝트답게, 저희도 학생이에요. DM이든 카톡이든 빠르게 답해드릴게요. 축제 당일엔 운영진이 실시간 대기 중이에요.</p>
 
             <div className="faq-contact">
               <h3>이렇게 연락해요</h3>
-              <p className="lp-p">평일 10–22시 / 축제 기간 24시간</p>
+              <p className="lp-p">평일 10–22시</p>
               <div className="faq-contact-rows">
                 <div className="fcr kk">
-                  <span className="ic">톡</span>
+                  <span className="ic">@</span>
                   <div>
-                    카카오톡 채널 @jujeom
-                    <small>평균 응답 5분 이내</small>
+                    Instagram @gong.zip.hab
+                    <small>ㅠ.ㅠ</small>
                   </div>
                 </div>
                 <div className="fcr">
                   <span className="ic">@</span>
                   <div>
-                    <a href="mailto:kucseai@gmail.com">kucseai@gmail.com</a>
+                    <a href="mailto:yeoziphab@gmail.com">yeoziphab@gmail.com</a>
                     <small>상세 문의·대량 운영 상담</small>
                   </div>
                 </div>
@@ -699,12 +699,12 @@ export default function LandingPage() {
 
           <div className="qa">
             <details open>
-              <summary>진짜 무료인가요? 숨겨진 수수료는 없나요?</summary>
+              <summary>사용은 무료인가요?</summary>
               <div className="ans">학생회·동아리 축제 용도는 완전 무료예요. 재미있게 즐겨주세요.</div>
             </details>
             <details>
               <summary>앱을 설치해야 하나요?</summary>
-              <div className="ans">손님은 QR만 찍으면 돼요. 설치·회원가입 일절 필요 없고, 브라우저로 바로 주문 화면이 열려요. 관리자·주방 화면도 웹이라 태블릿·노트북 어디서든 접속 가능.</div>
+              <div className="ans">손님은 QR만 찍으면 돼요. 설치·회원가입 없이, 브라우저로 바로 주문 화면이 열려요.</div>
             </details>
             <details>
               <summary>토스 송금이 자동으로 매칭되나요?</summary>
@@ -728,8 +728,8 @@ export default function LandingPage() {
           <div className="final-box">
             <div>
               <span className="eyebrow" style={{ color: '#5a3d00' }}>축제 2주 전? 아직 늦지 않았어요.</span>
-              <h2 className="lp-h2" style={{ marginTop: 14 }}>올해 축제는,<br />주방이 조용했으면.</h2>
-              <p className="lp-p">손 주문 사라지고, 계산 실수 사라지고, 학생회 새벽 엑셀 사라지고. 메뉴만 남는 차림을 써보세요.</p>
+              <h2 className="lp-h2" style={{ marginTop: 14 }}>올해 축제는,<br />무탈하게.</h2>
+              <p className="lp-p">실수 없이 추억만 남는 차림을 써보세요.</p>
               <div className="fb-cta">
                 <Link className="btn btn-primary btn-lg" href="/signup">주점 시작하기</Link>
               </div>
@@ -754,13 +754,12 @@ export default function LandingPage() {
           <div className="ft-top">
             <div className="ft-col ft-brand">
               <a className="lp-logo" href="/">
-                <span className="mk">酒</span>
                 <span className="wm" style={{ color: '#fff' }}>
                   차림
-                  <small style={{ color: '#8A91A5' }}>for student festival</small>
+                  <small style={{ color: '#8A91A5' }}>for University</small>
                 </span>
               </a>
-              <p className="lp-p">대학 학생회·동아리가 만드는 학생들의 주점 운영 도구. 오픈소스 기반, 학생회 무료 제공.</p>
+              <p className="lp-p">대학생들의 주점 운영.</p>
             </div>
             <div className="ft-col">
               <h4>제품</h4>
@@ -770,7 +769,7 @@ export default function LandingPage() {
             </div>
             <div className="ft-col">
               <h4>학생회용</h4>
-              <Link href="/signup">주점 만들기</Link>
+              <Link href="/signup">주점 시작하기</Link>
               <Link href="/login">관리자 로그인</Link>
             </div>
             <div className="ft-col">
@@ -782,11 +781,6 @@ export default function LandingPage() {
           </div>
           <div className="ft-bot">
             <div>© 2026 차림 · 학생 사이드 프로젝트</div>
-            <div>
-              <Link href="/terms">이용약관</Link>
-              <Link href="/privacy">개인정보처리방침</Link>
-              <a href="#">오픈소스 라이선스</a>
-            </div>
           </div>
         </div>
       </footer>
