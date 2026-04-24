@@ -7,6 +7,7 @@ import { uploadImage } from '@/lib/storage';
 import type { Menu } from '@/lib/database.types';
 import { useConfirm } from '@/components/ConfirmProvider';
 import { useStore } from '../../StoreProvider';
+import { formatPrice } from '@/lib/formatters';
 
 /* ── Constants ──────────────────────────────────── */
 const CATEGORIES = ['전체', '안주', '주류', '음료', '기타'] as const;
@@ -55,10 +56,6 @@ function stockStatus(stock: number, max: number) {
   if (ratio <= 0) return { ratio: 0, color: 'var(--crim)', label: '품절' };
   if (ratio <= 0.2) return { ratio, color: 'var(--amber)', label: '부족' };
   return { ratio, color: 'var(--mint)', label: '충분' };
-}
-
-function formatPrice(n: number) {
-  return n.toLocaleString('ko-KR') + '원';
 }
 
 /* ── Component ──────────────────────────────────── */

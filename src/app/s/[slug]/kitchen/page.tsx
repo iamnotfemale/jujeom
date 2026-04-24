@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import type { Order, OrderItem } from '@/lib/database.types';
 import { useStore } from '../StoreProvider';
+import { formatTimer } from '@/lib/formatters';
 
 type KDSStatus = 'new' | 'cooking' | 'done' | 'served' | 'cancelled';
 type FilterTab = '전체' | '신규' | '조리 중' | '완료 대기' | '오늘 완료';
@@ -88,7 +89,7 @@ export default function KitchenKDSPage() {
           orderNumber: o.order_number,
           tableNumber: o.table_number ?? 0,
           status: statusMap[o.status] ?? 'new',
-          note: null,
+          note: o.note ?? null,
           items: itemsMap[o.id] ?? [],
           createdAt: o.created_at,
           updatedAt: o.created_at,
@@ -184,11 +185,6 @@ export default function KitchenKDSPage() {
   };
 
   const getElapsedSec = (iso: string) => Math.floor((now - new Date(iso).getTime()) / 1000);
-  const formatTimer = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s2 = sec % 60;
-    return `${String(m).padStart(2, '0')}:${String(s2).padStart(2, '0')}`;
-  };
 
   // Active tickets exclude served/cancelled; completed tickets are served/cancelled
   const activeTickets = tickets.filter((t) => t.status !== 'served' && t.status !== 'cancelled');

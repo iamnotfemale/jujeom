@@ -38,31 +38,36 @@ export default function SignupPage() {
   };
 
   return (
-    <div style={s.wrap}>
-      <form onSubmit={onSubmit} style={s.card}>
-        <div style={s.brandRow}>
-          <div style={s.brandLogo}>주</div>
+    <div className="min-h-[100dvh] bg-[var(--paper)] flex items-center justify-center p-6">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-[400px] bg-[var(--surface)] rounded-[var(--r-xl)] px-7 py-8 flex flex-col gap-2 shadow-[var(--shadow-2)] border border-[var(--border)]"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-[var(--neon)] flex items-center justify-center font-extrabold text-lg">
+            주
+          </div>
           <div>
-            <div style={s.brandName}>주점</div>
-            <div style={s.brandSub}>관리자 콘솔</div>
+            <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">주점</div>
+            <div className="text-xs text-[var(--text-3)] mt-[2px]">관리자 콘솔</div>
           </div>
         </div>
 
-        <h1 style={s.title}>회원가입</h1>
-        <p style={s.sub}>축제 주점을 이 계정으로 관리하게 됩니다.</p>
+        <h1 className="text-2xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mt-2 mb-1">회원가입</h1>
+        <p className="text-[13px] text-[var(--text-3)] mb-4">축제 주점을 이 계정으로 관리하게 됩니다.</p>
 
-        <label style={s.label}>이메일</label>
+        <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">이메일</label>
         <input
           type="email"
           required
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={s.input}
+          className="px-[14px] py-3 rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-900)] text-[15px] font-[var(--f-sans)] outline-none"
           placeholder="you@school.ac.kr"
         />
 
-        <label style={s.label}>비밀번호 (8자 이상)</label>
+        <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">비밀번호 (8자 이상)</label>
         <input
           type="password"
           required
@@ -70,25 +75,32 @@ export default function SignupPage() {
           autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={s.input}
+          className="px-[14px] py-3 rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-900)] text-[15px] font-[var(--f-sans)] outline-none"
           placeholder="••••••••"
         />
 
-        {error && <div style={s.error}>{error}</div>}
-        {info && <div style={s.info}>{info}</div>}
+        {error && (
+          <div className="mt-2 px-3 py-[10px] bg-[color-mix(in_oklab,var(--crim)_10%,white)] border border-[color-mix(in_oklab,var(--crim)_30%,white)] rounded-[var(--r-sm)] text-[13px] text-[#8e0f0f]">
+            {error}
+          </div>
+        )}
+        {info && (
+          <div className="mt-2 px-3 py-[10px] bg-[color-mix(in_oklab,var(--mint)_14%,white)] border border-[color-mix(in_oklab,var(--mint)_35%,white)] rounded-[var(--r-sm)] text-[13px] text-[#0e6b46]">
+            {info}
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="btn btn-accent btn-lg btn-block"
-          style={{ marginTop: 12 }}
+          className="btn btn-accent btn-lg btn-block mt-3"
         >
           {loading ? '가입 중…' : '가입하기'}
         </button>
 
-        <div style={s.footer}>
+        <div className="mt-4 text-[13px] text-[var(--text-3)] text-center">
           이미 계정이 있으신가요?{' '}
-          <Link href="/login" style={s.link}>
+          <Link href="/login" className="text-[var(--ink-900)] no-underline font-bold">
             로그인
           </Link>
         </div>
@@ -96,80 +108,3 @@ export default function SignupPage() {
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  wrap: {
-    minHeight: '100dvh',
-    background: 'var(--paper)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    background: 'var(--surface)',
-    borderRadius: 'var(--r-xl)',
-    padding: '32px 28px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    boxShadow: 'var(--shadow-2)',
-    border: '1px solid var(--border)',
-  },
-  brandRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 },
-  brandLogo: {
-    width: 42,
-    height: 42,
-    borderRadius: 'var(--r-sm)',
-    background: 'var(--ink-900)',
-    color: 'var(--neon)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: 18,
-  },
-  brandName: { fontSize: 15, fontWeight: 700, color: 'var(--ink-900)', lineHeight: 1.2 },
-  brandSub: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 },
-  title: {
-    fontSize: 24,
-    fontWeight: 800,
-    color: 'var(--ink-900)',
-    letterSpacing: '-0.02em',
-    margin: '8px 0 4px',
-  },
-  sub: { fontSize: 13, color: 'var(--text-3)', marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginTop: 10 },
-  input: {
-    padding: '12px 14px',
-    borderRadius: 'var(--r-md)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface-2)',
-    color: 'var(--ink-900)',
-    fontSize: 15,
-    fontFamily: 'var(--f-sans)',
-    outline: 'none',
-  },
-  error: {
-    marginTop: 8,
-    padding: '10px 12px',
-    background: 'color-mix(in oklab, var(--crim) 10%, white)',
-    border: '1px solid color-mix(in oklab, var(--crim) 30%, white)',
-    borderRadius: 'var(--r-sm)',
-    fontSize: 13,
-    color: '#8e0f0f',
-  },
-  info: {
-    marginTop: 8,
-    padding: '10px 12px',
-    background: 'color-mix(in oklab, var(--mint) 14%, white)',
-    border: '1px solid color-mix(in oklab, var(--mint) 35%, white)',
-    borderRadius: 'var(--r-sm)',
-    fontSize: 13,
-    color: '#0e6b46',
-  },
-  footer: { marginTop: 16, fontSize: 13, color: 'var(--text-3)', textAlign: 'center' },
-  link: { color: 'var(--ink-900)', textDecoration: 'none', fontWeight: 700 },
-};

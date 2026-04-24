@@ -7,16 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ToastProvider';
 import { normalizeBankName } from '@/lib/banks';
 import { useStore } from '../../StoreProvider';
-
-/* ── Types ──────────────────────────────────── */
-interface CartItem {
-  menuId: number;
-  name: string;
-  price: number;
-  quantity: number;
-  options?: string;
-  imageUrl?: string | null;
-}
+import type { CartItem, StoredCartItem } from '@/lib/types/cart';
+import { cartStorageKey } from '@/lib/types/cart';
+import { formatPrice } from '@/lib/formatters';
 
 const QUICK_TAGS = ['# 덜 맵게', '# 빨리 부탁드려요', '# 앞접시 추가', '# 물티슈 추가'];
 
@@ -24,7 +17,7 @@ const QUICK_TAGS = ['# 덜 맵게', '# 빨리 부탁드려요', '# 앞접시 추
 /* ── Component ──────────────────────────────── */
 export default function OrderConfirmPageWrapper() {
   return (
-    <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'var(--f-sans)' }}>로딩 중...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen font-[var(--f-sans)]">로딩 중...</div>}>
       <OrderConfirmPage />
     </Suspense>
   );
@@ -55,18 +48,12 @@ function OrderConfirmPage() {
 
   /* hydrate cart from localStorage (per-table key) */
   useEffect(() => {
-    const key = `cart:${store.slug}:${tableNumber}`;
+    const key = cartStorageKey(store.slug, tableNumber);
     const raw = localStorage.getItem(key);
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        // The menu page stores CartItem[] as { menu: Menu; quantity: number; options?: string | null }
-        // Transform to the shape this page expects
-        type StoredCartItem = {
-          menu: { id: number; name: string; price: number; image_url?: string | null; options?: string | null };
-          quantity: number;
-          options?: string | null;
-        };
+        // The menu page stores items as StoredCartItem[] — transform to the flat CartItem shape
         const transformed: CartItem[] = (parsed as StoredCartItem[]).map((c) => ({
           menuId: c.menu.id,
           name: c.menu.name,
@@ -103,7 +90,7 @@ function OrderConfirmPage() {
   /* persist item edits back to localStorage so menu page stays in sync */
   useEffect(() => {
     if (!hydrated) return; // hydrate 되기 전엔 절대 persist 하지 않음
-    const storageKey = `cart:${store.slug}:${tableNumber}`;
+    const storageKey = cartStorageKey(store.slug, tableNumber);
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
@@ -111,11 +98,6 @@ function OrderConfirmPage() {
       if (!Array.isArray(parsed)) return;
       // filter/update existing records by (menu.id + options) to keep menu objects intact
       const byKey = new Map(items.map(it => [`${it.menuId}:${it.options ?? ''}`, it]));
-      type StoredCartItem = {
-        menu: { id: number; name: string; price: number; image_url?: string | null; options?: string | null };
-        quantity: number;
-        options?: string | null;
-      };
       const nextCart = (parsed as StoredCartItem[])
         .map((c) => {
           const k = `${c.menu.id}:${c.options ?? ''}`;
@@ -226,7 +208,7 @@ function OrderConfirmPage() {
 
       // 장바구니 비우기
       try {
-        localStorage.removeItem(`cart:${store.slug}:${tableNumber}`);
+        localStorage.removeItem(cartStorageKey(store.slug, tableNumber));
       } catch { /* ignore */ }
 
       // Toss 딥링크 (모바일에서만)
@@ -255,46 +237,36 @@ function OrderConfirmPage() {
 
   /* ── Render ────────────────────────────────── */
   return (
-    <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-[100dvh] bg-[var(--bg)] flex flex-col">
       {/* ── Header ─────────────────────────── */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 20,
-        background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <Link href={`/s/${store.slug}/order/menu?table=${tableNumber}`} style={{
-          width: 36, height: 36, borderRadius: 'var(--r-sm)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--surface-2)', textDecoration: 'none', color: 'var(--text)',
-          fontSize: 18, flexShrink: 0,
-        }}>
+      <header className="sticky top-0 z-20 bg-[var(--surface)] border-b border-[var(--border)] px-4 h-14 flex items-center gap-3">
+        <Link
+          href={`/s/${store.slug}/order/menu?table=${tableNumber}`}
+          className="w-9 h-9 rounded-[var(--r-sm)] flex items-center justify-center bg-[var(--surface-2)] no-underline text-[var(--text)] text-lg shrink-0"
+        >
           ←
         </Link>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 17, letterSpacing: '-0.01em' }}>주문 확인</div>
-          <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{storeName} · {tableNumber}번 테이블</div>
+        <div className="flex-1 min-w-0">
+          <div className="font-bold text-[17px] tracking-[-0.01em]">주문 확인</div>
+          <div className="text-xs text-[var(--text-3)]">{storeName} · {tableNumber}번 테이블</div>
         </div>
       </header>
 
       {/* ── Body ───────────────────────────── */}
-      <main style={{ flex: 1, padding: '16px 16px 160px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <main className="flex-1 px-4 pt-4 pb-[160px] flex flex-col gap-4">
 
         {/* ── Order items card ─────────────── */}
-        <section style={{
-          background: 'var(--surface)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border)', overflow: 'hidden',
-        }}>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', fontWeight: 700, fontSize: 15 }}>
-            주문 내역 <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>({items.length})</span>
+        <section className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] overflow-hidden">
+          <div className="px-4 py-[14px] border-b border-[var(--border)] font-bold text-[15px]">
+            주문 내역 <span className="text-[var(--text-3)] font-medium">({items.length})</span>
           </div>
           {items.length === 0 && (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div className="px-4 py-10 text-center text-[var(--text-3)] text-sm flex flex-col items-center gap-3">
               <span>장바구니가 비어 있어요. 메뉴를 먼저 선택해 주세요.</span>
-              <Link href={`/s/${store.slug}/order/menu?table=${tableNumber}`} style={{
-                padding: '8px 20px', borderRadius: 'var(--r-pill)',
-                background: 'var(--ink-900)', color: '#fff', fontSize: 14,
-                fontWeight: 600, textDecoration: 'none',
-              }}>
+              <Link
+                href={`/s/${store.slug}/order/menu?table=${tableNumber}`}
+                className="py-2 px-5 rounded-[var(--r-pill)] bg-[var(--ink-900)] text-white text-sm font-semibold no-underline"
+              >
                 메뉴 보러 가기
               </Link>
             </div>
@@ -302,53 +274,36 @@ function OrderConfirmPage() {
           {items.map(item => {
             const k = itemKey(item);
             return (
-            <div key={k} style={{
-              display: 'flex', gap: 12, padding: '14px 16px',
-              borderBottom: '1px solid var(--ink-100)',
-            }}>
+            <div key={k} className="flex gap-3 px-4 py-[14px] border-b border-[var(--ink-100)]">
               {/* thumbnail placeholder */}
-              <div style={{
-                width: 52, height: 52, borderRadius: 'var(--r-sm)',
-                background: 'var(--ink-100)', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22,
-              }}>
+              <div className="w-[52px] h-[52px] rounded-[var(--r-sm)] bg-[var(--ink-100)] shrink-0 flex items-center justify-center text-[22px]">
                 🍽
               </div>
               {/* info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 2 }}>{item.name}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-[15px] mb-[2px]">{item.name}</div>
                 {item.options && (
-                  <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>{item.options}</div>
+                  <div className="text-xs text-[var(--text-3)] mb-1">{item.options}</div>
                 )}
-                <div className="numeric" style={{ fontSize: 14, fontWeight: 600 }}>
-                  {(item.price * item.quantity).toLocaleString()}원
+                <div className="numeric text-sm font-semibold">
+                  {formatPrice(item.price * item.quantity)}
                 </div>
               </div>
               {/* qty controls */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div className="flex items-center gap-[6px] shrink-0">
                 <button
                   onClick={() => item.quantity === 1 ? removeItem(k) : updateQty(k, -1)}
-                  style={{
-                    width: 30, height: 30, borderRadius: 'var(--r-sm)',
-                    border: '1px solid var(--border)', background: 'var(--surface)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', fontSize: 14, color: item.quantity === 1 ? 'var(--crim)' : 'var(--text)',
-                  }}
+                  className="w-[30px] h-[30px] rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center cursor-pointer text-sm"
+                  style={{ color: item.quantity === 1 ? 'var(--crim)' : 'var(--text)' }}
                 >
                   {item.quantity === 1 ? '✕' : '−'}
                 </button>
-                <span className="numeric" style={{ width: 24, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>
+                <span className="numeric w-6 text-center font-semibold text-[15px]">
                   {item.quantity}
                 </span>
                 <button
                   onClick={() => updateQty(k, 1)}
-                  style={{
-                    width: 30, height: 30, borderRadius: 'var(--r-sm)',
-                    border: '1px solid var(--border)', background: 'var(--surface)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', fontSize: 14,
-                  }}
+                  className="w-[30px] h-[30px] rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center cursor-pointer text-sm"
                 >
                   +
                 </button>
@@ -359,25 +314,20 @@ function OrderConfirmPage() {
         </section>
 
         {/* ── Note / request ───────────────── */}
-        <section style={{
-          background: 'var(--surface)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border)', padding: 16,
-        }}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>요청 사항</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <section className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] p-4">
+          <div className="font-bold text-[15px] mb-[10px]">요청 사항</div>
+          <div className="flex flex-wrap gap-2 mb-[10px]">
             {QUICK_TAGS.map(tag => {
               const active = note.includes(tag);
               return (
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
+                  className="py-[6px] px-3 rounded-[var(--r-pill)] text-[13px] font-medium cursor-pointer transition-all duration-[150ms] ease"
                   style={{
-                    padding: '6px 12px', borderRadius: 'var(--r-pill)',
-                    fontSize: 13, fontWeight: 500, cursor: 'pointer',
                     border: active ? '1px solid var(--ink-900)' : '1px solid var(--border)',
                     background: active ? 'var(--ink-900)' : 'var(--surface)',
                     color: active ? '#fff' : 'var(--text-2)',
-                    transition: 'all .15s ease',
                   }}
                 >
                   {tag}
@@ -390,59 +340,39 @@ function OrderConfirmPage() {
             onChange={e => setNote(e.target.value)}
             placeholder="추가 요청사항을 입력해 주세요"
             rows={2}
-            style={{
-              width: '100%', resize: 'none', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-md)', padding: '10px 12px', fontSize: 14,
-              fontFamily: 'var(--f-sans)', color: 'var(--text)',
-              background: 'var(--surface-2)', outline: 'none',
-            }}
+            className="w-full resize-none border border-[var(--border)] rounded-[var(--r-md)] py-[10px] px-3 text-sm font-[var(--f-sans)] text-[var(--text)] bg-[var(--surface-2)] outline-none"
           />
         </section>
 
         {/* ── Summary ──────────────────────── */}
-        <section style={{
-          background: 'var(--surface)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border)', padding: 16,
-          display: 'flex', flexDirection: 'column', gap: 10,
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700 }}>
+        <section className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] p-4 flex flex-col gap-[10px]">
+          <div className="flex justify-between text-lg font-bold">
             <span>결제 금액</span>
-            <span className="numeric">{total.toLocaleString()}원</span>
+            <span className="numeric">{formatPrice(total)}</span>
           </div>
         </section>
 
         {/* ── Customer info ───────────────── */}
-        <section style={{
-          background: 'var(--surface)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border)', padding: 16,
-          display: 'flex', flexDirection: 'column', gap: 12,
-        }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>결제자 정보</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>입금자명 <span style={{ color: 'var(--crim)' }}>*</span></label>
+        <section className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] p-4 flex flex-col gap-3">
+          <div className="font-bold text-[15px]">결제자 정보</div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[13px] font-semibold text-[var(--text-2)]">입금자명 <span className="text-[var(--crim)]">*</span></label>
             <input
               type="text"
               value={customerName}
               onChange={e => setCustomerName(e.target.value)}
               placeholder="입금 시 이름"
-              style={{
-                width: '100%', border: '1px solid var(--border)',
-                borderRadius: 'var(--r-md)', padding: '10px 12px', fontSize: 14,
-                fontFamily: 'var(--f-sans)', color: 'var(--text)',
-                background: 'var(--surface-2)', outline: 'none',
-              }}
+              className="w-full border border-[var(--border)] rounded-[var(--r-md)] py-[10px] px-3 text-sm font-[var(--f-sans)] text-[var(--text)] bg-[var(--surface-2)] outline-none"
             />
           </div>
         </section>
       </main>
 
       {/* ── Payment footer ─────────────────── */}
-      <footer style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30,
-        background: 'var(--surface)', borderTop: '1px solid var(--border)',
-        padding: '12px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
-        display: 'flex', flexDirection: 'column', gap: 10,
-      }}>
+      <footer
+        className="fixed bottom-0 left-0 right-0 z-30 bg-[var(--surface)] border-t border-[var(--border)] px-4 pt-3 flex flex-col gap-[10px]"
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
         {/* toss button */}
         <button
           className="btn btn-lg btn-block"
@@ -453,11 +383,7 @@ function OrderConfirmPage() {
             opacity: (items.length === 0 || !customerName.trim()) ? 0.4 : 1,
           }}
         >
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 22, height: 22, borderRadius: 6, background: '#fff',
-            color: '#0064FF', fontWeight: 800, fontSize: 14, lineHeight: 1,
-          }}>t</span>
+          <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-[6px] bg-white text-[#0064FF] font-extrabold text-sm leading-none">t</span>
           토스로 결제하기
         </button>
 
@@ -472,19 +398,11 @@ function OrderConfirmPage() {
         </button>
 
         {/* account info */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          fontSize: 13, color: 'var(--text-3)',
-        }}>
+        <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--text-3)]">
           <span>{accountInfo}</span>
           <button
             onClick={copyAccount}
-            style={{
-              padding: '3px 8px', borderRadius: 'var(--r-sm)',
-              border: '1px solid var(--border)', background: 'var(--surface-2)',
-              fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text-2)',
-              transition: 'all .15s ease',
-            }}
+            className="py-[3px] px-2 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-2)] text-[11px] font-semibold cursor-pointer text-[var(--text-2)] transition-all duration-[150ms] ease"
           >
             {copied ? '복사됨!' : '복사'}
           </button>
@@ -494,64 +412,42 @@ function OrderConfirmPage() {
       {/* ── Transfer Modal ────────────────── */}
       {showTransferModal && (
         <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(23,23,25,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 24,
-          }}
+          className="fixed inset-0 z-[100] bg-[rgba(23,23,25,0.6)] flex items-center justify-center p-6"
           onClick={() => setShowTransferModal(false)}
         >
           <div
-            style={{
-              background: '#fff', borderRadius: 'var(--r-xl)',
-              width: '100%', maxWidth: 380,
-              padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 20,
-            }}
+            className="bg-white rounded-[var(--r-xl)] w-full max-w-[380px] px-6 py-7 flex flex-col gap-5"
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ fontWeight: 700, fontSize: 18, textAlign: 'center' }}>계좌이체 안내</div>
+            <div className="font-bold text-lg text-center">계좌이체 안내</div>
 
             {/* account info box */}
-            <div style={{
-              background: 'var(--ink-050, #f5f5f5)', borderRadius: 'var(--r-md)',
-              padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 6,
-              alignItems: 'center',
-            }}>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 500 }}>{bankName} · {accountHolder}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'var(--f-mono, monospace)', letterSpacing: '0.02em' }}>
+            <div className="bg-[var(--ink-050,#f5f5f5)] rounded-[var(--r-md)] px-5 py-4 flex flex-col gap-[6px] items-center">
+              <div className="text-[13px] text-[var(--text-3)] font-medium">{bankName} · {accountHolder}</div>
+              <div className="text-[22px] font-bold font-[var(--f-mono,monospace)] tracking-[0.02em]">
                 {accountNo}
               </div>
               <button
                 onClick={copyAccount}
-                style={{
-                  marginTop: 4, padding: '5px 14px', borderRadius: 'var(--r-pill)',
-                  border: '1px solid var(--border)', background: '#fff',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--text-2)',
-                  transition: 'all .15s ease',
-                }}
+                className="mt-1 py-[5px] px-[14px] rounded-[var(--r-pill)] border border-[var(--border)] bg-white text-xs font-semibold cursor-pointer text-[var(--text-2)] transition-all duration-[150ms] ease"
               >
                 {copied ? '복사됨!' : '계좌번호 복사하기'}
               </button>
             </div>
 
             {/* amount */}
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 4 }}>입금 금액</div>
-              <div className="numeric" style={{ fontSize: 22, fontWeight: 700 }}>{total.toLocaleString()}원</div>
+            <div className="text-center">
+              <div className="text-[13px] text-[var(--text-3)] mb-1">입금 금액</div>
+              <div className="numeric text-[22px] font-bold">{formatPrice(total)}</div>
             </div>
 
             {/* note */}
-            <div style={{
-              textAlign: 'center', fontSize: 13, color: 'var(--text-2)',
-              background: 'var(--ink-050, #f5f5f5)', borderRadius: 'var(--r-md)',
-              padding: '10px 16px', lineHeight: 1.5,
-            }}>
+            <div className="text-center text-[13px] text-[var(--text-2)] bg-[var(--ink-050,#f5f5f5)] rounded-[var(--r-md)] px-4 py-[10px] leading-[1.5]">
               입금자명에 &lsquo;<strong>{customerName}</strong>&rsquo;을 꼭 입력해주세요
             </div>
 
             {/* actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
+            <div className="flex flex-col gap-[10px] mt-1">
               <button
                 className="btn btn-lg btn-block"
                 disabled={submitting}

@@ -6,17 +6,16 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { supabase } from '@/lib/supabase';
 import type { Menu } from '@/lib/database.types';
 import { useStore } from '../../StoreProvider';
+import { formatPrice } from '@/lib/formatters';
+import { cartStorageKey } from '@/lib/types/cart';
 
-type CartItem = { menu: Menu; quantity: number; options?: string | null };
+/** Menu-page-local shape: holds the full Menu object for display purposes */
+type MenuCartItem = { menu: Menu; quantity: number; options?: string | null };
 
 const CATEGORIES = ['전체', '안주', '주류', '음료'] as const;
 type Category = (typeof CATEGORIES)[number];
 
 /* ── helpers ──────────────────────────────── */
-
-function formatPrice(n: number) {
-  return n.toLocaleString('ko-KR') + '원';
-}
 
 function thumbColors(category: string) {
   switch (category) {
@@ -39,12 +38,8 @@ function parseOptions(raw: string | null | undefined): string[] {
     .filter((s) => s.length > 0);
 }
 
-function cartKey(item: CartItem) {
+function cartKey(item: MenuCartItem) {
   return `${item.menu.id}:${item.options ?? ''}`;
-}
-
-function cartStorageKey(slug: string, table: string) {
-  return `cart:${slug}:${table}`;
 }
 
 /* ── main ─────────────────────────────────── */
@@ -58,7 +53,7 @@ function MenuContent() {
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category>('전체');
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<MenuCartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
 
   /* option modal state */
@@ -216,7 +211,9 @@ function MenuContent() {
     dragDelta.current = 0;
   };
 
-  const showSheet = cartCount > 0;
+  const isPaused = store.is_paused === true;
+  const isClosed = store.is_open === false;
+  const showSheet = cartCount > 0 && !isPaused && !isClosed;
 
   return (
     <div
@@ -345,6 +342,28 @@ function MenuContent() {
           })}
         </div>
       </header>
+
+      {/* Paused / closed banner */}
+      {(isPaused || isClosed) && (
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 440,
+            background: isClosed ? '#FFF0F0' : '#FFFBE6',
+            border: `1px solid ${isClosed ? '#FFCDD2' : '#FFE066'}`,
+            borderRadius: 'var(--r-md)',
+            padding: '12px 20px',
+            fontSize: 14,
+            fontWeight: 600,
+            color: isClosed ? '#9B1C1C' : '#7A5C00',
+            textAlign: 'center',
+            margin: '12px 20px 0',
+            boxSizing: 'border-box',
+          }}
+        >
+          {isClosed ? '현재 영업이 종료되었습니다' : '현재 주문이 일시 중지되었습니다'}
+        </div>
+      )}
 
       {/* Content area */}
       <div
@@ -597,13 +616,16 @@ function MenuContent() {
                           {!soldOut && (
                             <button
                               className="btn btn-sm btn-primary"
+                              disabled={isPaused || isClosed}
                               style={{
                                 height: 30,
                                 padding: '0 10px',
                                 fontSize: 12,
                                 borderRadius: 'var(--r-sm)',
+                                opacity: isPaused || isClosed ? 0.4 : 1,
+                                cursor: isPaused || isClosed ? 'not-allowed' : 'pointer',
                               }}
-                              onClick={() => handleMenuClick(item)}
+                              onClick={() => !(isPaused || isClosed) && handleMenuClick(item)}
                             >
                               {hasOptions ? '옵션 선택' : '담기'}
                             </button>
@@ -1139,6 +1161,7 @@ function MenuContent() {
                 </div>
                 <button
                   onClick={goToConfirm}
+                  disabled={isPaused || isClosed}
                   style={{
                     appearance: 'none',
                     border: 'none',
@@ -1148,7 +1171,8 @@ function MenuContent() {
                     fontSize: 14,
                     padding: '10px 18px',
                     borderRadius: 'var(--r-pill)',
-                    cursor: 'pointer',
+                    cursor: isPaused || isClosed ? 'not-allowed' : 'pointer',
+                    opacity: isPaused || isClosed ? 0.4 : 1,
                     fontFamily: 'var(--f-sans)',
                     letterSpacing: '-0.01em',
                     flexShrink: 0,

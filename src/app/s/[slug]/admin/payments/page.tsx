@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import type { Order, Payment, OrderItem } from '@/lib/database.types';
 import { useStore } from '../../StoreProvider';
+import { formatPrice, elapsedMinutes, formatElapsed } from '@/lib/formatters';
 
 interface PaymentRow {
   orderId: number;
@@ -163,19 +164,14 @@ export default function PaymentsPage() {
     const body = filtered.map((r) =>
       [r.orderNumber, r.tableNumber, r.customerName ?? '', r.customerPhone ?? '', `"${r.items}"`, r.amount, r.paymentStatus, r.createdAt].join(',')
     ).join('\n');
-    const blob = new Blob(['\uFEFF' + header + body], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `payments_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
-  const getElapsedMin = (iso: string) => Math.floor((now - new Date(iso).getTime()) / 60000);
-  const formatElapsed = (min: number) => {
-    if (min < 1) return '방금';
-    if (min < 60) return `${min}분`;
-    return `${Math.floor(min / 60)}시간 ${min % 60}분`;
-  };
+  const getElapsedMin = (iso: string) => elapsedMinutes(iso);
 
   const statusFilterMap: Record<FilterTab, PaymentRow['paymentStatus'] | null> = {
     '전체': null, '입금 대기': 'waiting', '입금 확인': 'confirmed', '완료': 'completed', '취소': 'cancelled',
@@ -221,23 +217,32 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div style={s.page}>
+    <div className="pb-10 max-w-[1060px]">
       {/* Flow Banner */}
-      <div style={s.flowBanner}>
+      <div
+        className="flex items-center justify-center gap-1 py-[14px] px-6 flex-wrap"
+        style={{ background: 'linear-gradient(135deg, var(--ink-900) 0%, var(--ink-800) 100%)' }}
+      >
         {FLOW_STEPS.map((step, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {i > 0 && <div style={{ width: 24, height: 1, background: 'rgba(255,255,255,.2)' }} />}
-            <div style={{
-              ...s.flowCircle,
-              ...(i === 3 ? { background: 'var(--neon)', color: 'var(--neon-ink)' } : {}),
-            }}>
+          <div key={i} className="flex items-center gap-2">
+            {i > 0 && <div className="w-6 h-px" style={{ background: 'rgba(255,255,255,.2)' }} />}
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+              style={
+                i === 3
+                  ? { background: 'var(--neon)', color: 'var(--neon-ink)' }
+                  : { background: 'rgba(255,255,255,.12)', color: 'rgba(255,255,255,.5)' }
+              }
+            >
               {i + 1}
             </div>
-            <span style={{
-              fontSize: 12,
-              fontWeight: i === 3 ? 700 : 500,
-              color: i === 3 ? 'var(--neon)' : 'rgba(255,255,255,.6)',
-            }}>
+            <span
+              className="text-xs"
+              style={{
+                fontWeight: i === 3 ? 700 : 500,
+                color: i === 3 ? 'var(--neon)' : 'rgba(255,255,255,.6)',
+              }}
+            >
               {step}
             </span>
           </div>
@@ -245,57 +250,72 @@ export default function PaymentsPage() {
       </div>
 
       {/* Header */}
-      <div style={s.header}>
+      <div className="pt-6 px-7 pb-0 mb-5">
         <div>
-          <h1 style={s.title}>결제 내역</h1>
-          <p style={s.sub}>오늘의 주문 및 입금 현황을 관리합니다</p>
+          <h1 className="text-[22px] font-extrabold m-0 leading-[1.3]">결제 내역</h1>
+          <p className="text-[13px] text-[var(--ink-400)] mt-[2px] mb-0">오늘의 주문 및 입금 현황을 관리합니다</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div style={s.statsRow}>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>총 주문</div>
-          <div style={s.statValue} className="numeric">{totalOrders}</div>
+      <div className="grid grid-cols-4 gap-3 px-7 mb-5">
+        <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">총 주문</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{totalOrders}</div>
         </div>
-        <div style={{ ...s.statCard, background: 'color-mix(in oklab, var(--mint) 6%, white)', border: '1px solid color-mix(in oklab, var(--mint) 18%, white)' }}>
-          <div style={s.statLabel}>입금 확인</div>
-          <div style={{ ...s.statValue, color: 'var(--mint)' }} className="numeric">{confirmedCount}</div>
+        <div
+          className="border rounded-[var(--r-lg)] py-[14px] px-4"
+          style={{
+            background: 'color-mix(in oklab, var(--mint) 6%, white)',
+            border: '1px solid color-mix(in oklab, var(--mint) 18%, white)',
+          }}
+        >
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">입금 확인</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] text-[var(--mint)] numeric">{confirmedCount}</div>
         </div>
-        <div style={{ ...s.statCard, background: 'color-mix(in oklab, var(--amber) 8%, white)', border: '1px solid color-mix(in oklab, var(--amber) 20%, white)' }}>
-          <div style={s.statLabel}>입금 대기</div>
-          <div style={{ ...s.statValue, color: 'var(--amber)' }} className="numeric">{waitingCount}</div>
+        <div
+          className="border rounded-[var(--r-lg)] py-[14px] px-4"
+          style={{
+            background: 'color-mix(in oklab, var(--amber) 8%, white)',
+            border: '1px solid color-mix(in oklab, var(--amber) 20%, white)',
+          }}
+        >
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">입금 대기</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] text-[var(--amber)] numeric">{waitingCount}</div>
         </div>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>총 매출</div>
-          <div style={s.statValue} className="numeric">{totalSales.toLocaleString()}원</div>
+        <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">총 매출</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{formatPrice(totalSales)}</div>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div style={s.toolbar}>
+      <div className="flex items-center gap-[10px] px-7 mb-4 flex-wrap">
         <input
           type="text"
           placeholder="주문번호, 이름, 연락처 검색..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={s.searchInput}
+          className="h-9 py-0 px-[14px] rounded-[var(--r-sm)] border border-[var(--border)] text-[13px] w-[220px] outline-none bg-[var(--white)]"
+          style={{ fontFamily: 'var(--f-sans)' }}
         />
-        <div style={s.filterChips}>
+        <div className="flex gap-1">
           {(['전체', '입금 대기', '입금 확인', '완료', '취소'] as FilterTab[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              style={{
-                ...s.chip,
-                ...(filter === f ? s.chipActive : {}),
-              }}
+              className="h-8 py-0 px-[14px] rounded-[var(--r-pill)] text-xs font-semibold cursor-pointer transition-all"
+              style={
+                filter === f
+                  ? { background: 'var(--ink-900)', color: '#fff', border: '1px solid var(--ink-900)', fontFamily: 'var(--f-sans)' }
+                  : { background: 'var(--white)', color: 'var(--ink-500)', border: '1px solid var(--border)', fontFamily: 'var(--f-sans)' }
+              }
             >
               {f}
             </button>
           ))}
         </div>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <button onClick={exportCSV} className="btn btn-ghost btn-sm">CSV 내보내기</button>
         {waitingCount > 0 && (
           <button onClick={bulkConfirm} className="btn btn-sm" style={{ background: 'var(--mint)', color: '#fff', border: 0 }}>
@@ -305,22 +325,22 @@ export default function PaymentsPage() {
       </div>
 
       {/* Table */}
-      <div style={s.tableWrap}>
+      <div className="mx-7 bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-400)' }}>불러오는 중...</div>
+          <div className="p-10 text-center text-[var(--ink-400)]">불러오는 중...</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-400)' }}>결제 내역이 없습니다</div>
+          <div className="p-10 text-center text-[var(--ink-400)]">결제 내역이 없습니다</div>
         ) : (
-          <table style={s.table}>
+          <table className="w-full" style={{ borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={s.th}>주문번호</th>
-                <th style={s.th}>테이블</th>
-                <th style={s.th}>이름 · 연락처</th>
-                <th style={s.th}>주문 내역</th>
-                <th style={{ ...s.th, textAlign: 'right' }}>금액</th>
-                <th style={s.th}>상태 · 경과</th>
-                <th style={{ ...s.th, textAlign: 'center' }}>작업</th>
+                <th className="text-left py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">주문번호</th>
+                <th className="text-left py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">테이블</th>
+                <th className="text-left py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">이름 · 연락처</th>
+                <th className="text-left py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">주문 내역</th>
+                <th className="text-right py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">금액</th>
+                <th className="text-left py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">상태 · 경과</th>
+                <th className="text-center py-3 px-[14px] text-[11px] font-semibold text-[var(--ink-400)] uppercase tracking-[0.04em] border-b border-[var(--ink-100)] bg-[var(--ink-050)]">작업</th>
               </tr>
             </thead>
             <tbody>
@@ -335,6 +355,7 @@ export default function PaymentsPage() {
                   <tr
                     key={r.orderId}
                     onClick={() => setDetailRow(r)}
+                    className="cursor-pointer transition-[background_.15s_ease]"
                     style={{
                       background: isOverdue
                         ? 'color-mix(in oklab, var(--crim) 5%, white)'
@@ -343,51 +364,42 @@ export default function PaymentsPage() {
                         : r.paymentStatus === 'cancelled'
                         ? 'color-mix(in oklab, var(--crim) 3%, white)'
                         : 'transparent',
-                      transition: 'background .15s ease',
-                      cursor: 'pointer',
                       opacity: r.paymentStatus === 'cancelled' ? 0.6 : 1,
                     }}
                   >
-                    <td style={s.td}>
-                      <div style={{ fontWeight: 700, fontSize: 13 }} className="numeric">{r.orderNumber}</div>
-                      <div className="numeric" style={{ fontSize: 11, color: 'var(--ink-400)', marginTop: 2 }}>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle">
+                      <div className="font-bold text-[13px] numeric">{r.orderNumber}</div>
+                      <div className="numeric text-[11px] text-[var(--ink-400)] mt-[2px]">
                         {new Date(r.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                       </div>
                     </td>
-                    <td style={s.td}>
-                      <span style={s.tableChip}>{r.tableNumber}</span>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle">
+                      <span className="inline-flex items-center justify-center w-[30px] h-[30px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-white text-[13px] font-bold">{r.tableNumber}</span>
                     </td>
-                    <td style={s.td}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{r.customerName ?? '-'}</div>
-                      <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>{r.customerPhone ?? '-'}</div>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle">
+                      <div className="text-[13px] font-semibold">{r.customerName ?? '-'}</div>
+                      <div className="text-[11px] text-[var(--ink-400)]">{r.customerPhone ?? '-'}</div>
                     </td>
-                    <td style={{ ...s.td, maxWidth: 200 }}>
-                      <div style={{ fontSize: 12, color: 'var(--ink-600)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.items}</div>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle max-w-[200px]">
+                      <div className="text-xs text-[var(--ink-600)] whitespace-nowrap overflow-hidden text-ellipsis">{r.items}</div>
                     </td>
-                    <td style={{ ...s.td, textAlign: 'right' }}>
-                      <span style={{ fontWeight: 700, fontSize: 13 }} className="numeric">{r.amount.toLocaleString()}원</span>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle text-right">
+                      <span className="font-bold text-[13px] numeric">{formatPrice(r.amount)}</span>
                     </td>
-                    <td style={s.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle">
+                      <div className="flex items-center gap-[6px] flex-wrap">
                         <span className={badge.cls}>{badge.label}</span>
                         {isWaiting && (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            padding: '3px 8px',
-                            borderRadius: 'var(--r-pill)',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            background: age.bg,
-                            color: age.color,
-                          }}>
+                          <span
+                            className="inline-flex items-center gap-1 py-[3px] px-2 rounded-[var(--r-pill)] text-[11px] font-semibold"
+                            style={{ background: age.bg, color: age.color }}
+                          >
                             {age.label}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td style={{ ...s.td, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <td className="py-3 px-[14px] border-b border-[var(--ink-050)] text-[13px] align-middle text-center" onClick={(e) => e.stopPropagation()}>
                       {(() => {
                         const statusStyles: Record<string, { bg: string; color: string; border: string }> = {
                           waiting:   { bg: 'color-mix(in oklab, var(--amber) 14%, white)', color: '#8a4d00', border: '1px solid color-mix(in oklab, var(--amber) 25%, white)' },
@@ -428,13 +440,13 @@ export default function PaymentsPage() {
       </div>
 
       {/* Footer */}
-      <div style={s.footer}>
-        <span style={{ fontSize: 13, color: 'var(--ink-500)' }}>
+      <div className="flex items-center justify-between py-[14px] px-7">
+        <span className="text-[13px] text-[var(--ink-500)]">
           총 {filtered.length}건 표시 중
         </span>
         {pendingAmount > 0 && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amber)' }}>
-            대기 금액: {pendingAmount.toLocaleString()}원
+          <span className="text-[13px] font-semibold text-[var(--amber)]">
+            대기 금액: {formatPrice(pendingAmount)}
           </span>
         )}
       </div>
@@ -442,72 +454,64 @@ export default function PaymentsPage() {
       {/* Order Detail Modal */}
       {detailRow && (
         <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(14,18,32,.45)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
-            animation: 'fadeIn .15s ease',
-          }}
+          className="fixed inset-0 flex items-center justify-center z-[200]"
+          style={{ background: 'rgba(14,18,32,.45)', animation: 'fadeIn .15s ease' }}
           onClick={() => setDetailRow(null)}
         >
           <div
-            style={{
-              background: '#fff', borderRadius: 'var(--r-lg)', padding: '28px 32px',
-              maxWidth: 440, width: '90%', boxShadow: 'var(--shadow-3)',
-              animation: 'pop .2s ease',
-            }}
+            className="bg-white rounded-[var(--r-lg)] py-7 px-8 max-w-[440px] w-[90%] shadow-[var(--shadow-3)]"
+            style={{ animation: 'pop .2s ease' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>주문 #{detailRow.orderNumber}</div>
-                <div style={{ fontSize: 12, color: 'var(--ink-400)', marginTop: 2 }}>{detailRow.tableNumber}번 테이블</div>
+                <div className="text-lg font-extrabold">주문 #{detailRow.orderNumber}</div>
+                <div className="text-xs text-[var(--ink-400)] mt-[2px]">{detailRow.tableNumber}번 테이블</div>
               </div>
-              <button onClick={() => setDetailRow(null)} style={{
-                width: 32, height: 32, borderRadius: '50%', border: 0, background: 'var(--ink-050)',
-                cursor: 'pointer', fontSize: 16, color: 'var(--ink-400)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>✕</button>
+              <button
+                onClick={() => setDetailRow(null)}
+                className="w-8 h-8 rounded-full border-0 bg-[var(--ink-050)] cursor-pointer text-base text-[var(--ink-400)] flex items-center justify-center"
+              >✕</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="flex flex-col gap-[14px]">
               {/* 주문 시간 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>주문 시간</span>
-                <span className="numeric" style={{ fontWeight: 600 }}>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-[var(--ink-400)] font-semibold">주문 시간</span>
+                <span className="numeric font-semibold">
                   {new Date(detailRow.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
                 </span>
               </div>
 
               {/* 결제 방식 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>결제 방식</span>
-                <span style={{
-                  fontWeight: 600, padding: '2px 10px', borderRadius: 'var(--r-pill)',
-                  background: detailRow.method === 'toss' ? '#0064FF' : 'var(--ink-100)',
-                  color: detailRow.method === 'toss' ? '#fff' : 'var(--ink-600)',
-                  fontSize: 12,
-                }}>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-[var(--ink-400)] font-semibold">결제 방식</span>
+                <span
+                  className="font-semibold py-[2px] px-[10px] rounded-[var(--r-pill)] text-xs"
+                  style={{
+                    background: detailRow.method === 'toss' ? '#0064FF' : 'var(--ink-100)',
+                    color: detailRow.method === 'toss' ? '#fff' : 'var(--ink-600)',
+                  }}
+                >
                   {detailRow.method === 'toss' ? '토스' : '계좌이체'}
                 </span>
               </div>
 
               {/* 이름 · 연락처 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span style={{ color: 'var(--ink-400)', fontWeight: 600 }}>이름 · 연락처</span>
-                <span style={{ fontWeight: 600 }}>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-[var(--ink-400)] font-semibold">이름 · 연락처</span>
+                <span className="font-semibold">
                   {detailRow.customerName ?? '-'} · {detailRow.customerPhone ?? '-'}
                 </span>
               </div>
 
               {/* 구분선 */}
-              <div style={{ height: 1, background: 'var(--ink-100)' }} />
+              <div className="h-px bg-[var(--ink-100)]" />
 
               {/* 주문 내역 */}
               <div>
-                <div style={{ fontSize: 12, color: 'var(--ink-400)', fontWeight: 600, marginBottom: 8 }}>주문 내역</div>
-                <div style={{
-                  background: 'var(--ink-050)', borderRadius: 'var(--r-sm)', padding: '12px 14px',
-                  fontSize: 13, lineHeight: 1.7, color: 'var(--ink-700)',
-                }}>
+                <div className="text-xs text-[var(--ink-400)] font-semibold mb-2">주문 내역</div>
+                <div className="bg-[var(--ink-050)] rounded-[var(--r-sm)] py-3 px-[14px] text-[13px] leading-[1.7] text-[var(--ink-700)]">
                   {detailRow.items.split(', ').map((item, i) => (
                     <div key={i}>{item}</div>
                   ))}
@@ -517,24 +521,26 @@ export default function PaymentsPage() {
               {/* 요청사항 */}
               {detailRow.note && (
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-400)', fontWeight: 600, marginBottom: 6 }}>요청 사항</div>
-                  <div style={{
-                    background: 'color-mix(in oklab, var(--neon) 8%, white)',
-                    border: '1px dashed var(--neon)', borderRadius: 'var(--r-sm)',
-                    padding: '10px 14px', fontSize: 13, color: 'var(--neon-ink)', lineHeight: 1.5,
-                  }}>
+                  <div className="text-xs text-[var(--ink-400)] font-semibold mb-[6px]">요청 사항</div>
+                  <div
+                    className="rounded-[var(--r-sm)] py-[10px] px-[14px] text-[13px] text-[var(--neon-ink)] leading-[1.5]"
+                    style={{
+                      background: 'color-mix(in oklab, var(--neon) 8%, white)',
+                      border: '1px dashed var(--neon)',
+                    }}
+                  >
                     {detailRow.note}
                   </div>
                 </div>
               )}
 
               {/* 구분선 */}
-              <div style={{ height: 1, background: 'var(--ink-100)' }} />
+              <div className="h-px bg-[var(--ink-100)]" />
 
               {/* 합계 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-400)' }}>결제 금액</span>
-                <span className="numeric" style={{ fontSize: 22, fontWeight: 800 }}>{detailRow.amount.toLocaleString()}원</span>
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm font-semibold text-[var(--ink-400)]">결제 금액</span>
+                <span className="numeric text-[22px] font-extrabold">{formatPrice(detailRow.amount)}</span>
               </div>
             </div>
           </div>
@@ -543,179 +549,13 @@ export default function PaymentsPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={s.toast}>{toast}</div>
+        <div
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[var(--ink-900)] text-white py-3 px-6 rounded-[var(--r-md)] text-sm font-semibold shadow-[var(--shadow-3)] z-[100]"
+          style={{ animation: 'toastIn .2s ease' }}
+        >
+          {toast}
+        </div>
       )}
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page: {
-    padding: '0 0 40px',
-    maxWidth: 1060,
-  },
-  flowBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    padding: '14px 24px',
-    background: 'linear-gradient(135deg, var(--ink-900) 0%, var(--ink-800) 100%)',
-    flexWrap: 'wrap',
-  },
-  flowCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,.12)',
-    color: 'rgba(255,255,255,.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 11,
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  header: {
-    padding: '24px 28px 0',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 800,
-    margin: 0,
-    lineHeight: 1.3,
-  },
-  sub: {
-    fontSize: 13,
-    color: 'var(--ink-400)',
-    margin: '2px 0 0',
-  },
-  statsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 12,
-    padding: '0 28px',
-    marginBottom: 20,
-  },
-  statCard: {
-    background: 'var(--white)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    padding: '14px 16px',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: 'var(--ink-400)',
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 26,
-    fontWeight: 800,
-    lineHeight: 1.2,
-    letterSpacing: '-0.02em',
-  },
-  toolbar: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '0 28px',
-    marginBottom: 16,
-    flexWrap: 'wrap',
-  },
-  searchInput: {
-    height: 36,
-    padding: '0 14px',
-    borderRadius: 'var(--r-sm)',
-    border: '1px solid var(--border)',
-    fontSize: 13,
-    fontFamily: 'var(--f-sans)',
-    width: 220,
-    outline: 'none',
-    background: 'var(--white)',
-  },
-  filterChips: {
-    display: 'flex',
-    gap: 4,
-  },
-  chip: {
-    height: 32,
-    padding: '0 14px',
-    borderRadius: 'var(--r-pill)',
-    border: '1px solid var(--border)',
-    background: 'var(--white)',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'var(--f-sans)',
-    color: 'var(--ink-500)',
-    transition: 'all .12s ease',
-  },
-  chipActive: {
-    background: 'var(--ink-900)',
-    color: '#fff',
-    border: '1px solid var(--ink-900)',
-  },
-  tableWrap: {
-    margin: '0 28px',
-    background: 'var(--white)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    overflow: 'hidden',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '12px 14px',
-    fontSize: 11,
-    fontWeight: 600,
-    color: 'var(--ink-400)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    borderBottom: '1px solid var(--ink-100)',
-    background: 'var(--ink-050)',
-  },
-  td: {
-    padding: '12px 14px',
-    borderBottom: '1px solid var(--ink-050)',
-    fontSize: 13,
-    verticalAlign: 'middle',
-  },
-  tableChip: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 30,
-    height: 30,
-    borderRadius: 'var(--r-sm)',
-    background: 'var(--ink-900)',
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  footer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px 28px',
-  },
-  toast: {
-    position: 'fixed',
-    bottom: 32,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'var(--ink-900)',
-    color: '#fff',
-    padding: '12px 24px',
-    borderRadius: 'var(--r-md)',
-    fontSize: 14,
-    fontWeight: 600,
-    boxShadow: 'var(--shadow-3)',
-    animation: 'toastIn .2s ease',
-    zIndex: 100,
-  },
-};

@@ -7,6 +7,7 @@ import { adminApi } from '@/lib/admin-api';
 import { useAdminStoreName } from '../AdminShell';
 import { useStore } from '../../StoreProvider';
 import type { Order, Table, Payment, OrderItem } from '@/lib/database.types';
+import { formatPrice, formatTimeAgo } from '@/lib/formatters';
 
 interface DashboardStats {
   totalOrders: number;
@@ -38,12 +39,6 @@ export default function DashboardPage() {
   const [tables, setTables] = useState<Table[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const tick = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(tick);
-  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -164,13 +159,6 @@ export default function DashboardPage() {
     weekday: 'short',
   });
 
-  const timeAgo = (iso: string) => {
-    const diff = Math.floor((now - new Date(iso).getTime()) / 60000);
-    if (diff < 1) return '방금';
-    if (diff < 60) return `${diff}분 전`;
-    return `${Math.floor(diff / 60)}시간 전`;
-  };
-
   const tableStatusLabel = (s: string) => {
     switch (s) {
       case 'occupied': return '이용 중';
@@ -189,11 +177,11 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div style={s.page}>
-        <div style={s.header}>
+      <div className="px-7 pt-6 pb-10 max-w-[1060px]">
+        <div className="flex items-start justify-between mb-5">
           <div>
-            <h1 style={s.title}>대시보드</h1>
-            <p style={s.date}>{todayStr}</p>
+            <h1 className="text-[22px] font-extrabold m-0 leading-[1.3]">대시보드</h1>
+            <p className="text-[13px] text-[var(--ink-400)] mt-[2px] mb-0">{todayStr}</p>
           </div>
         </div>
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--ink-400)' }}>
@@ -204,89 +192,110 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={s.page}>
+    <div className="px-7 pt-6 pb-10 max-w-[1060px]">
       {/* Header */}
-      <div style={s.header}>
+      <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 style={s.title}>{storeName} · 대시보드</h1>
-          <p style={s.date}>{todayStr}</p>
+          <h1 className="text-[22px] font-extrabold m-0 leading-[1.3]">{storeName} · 대시보드</h1>
+          <p className="text-[13px] text-[var(--ink-400)] mt-[2px] mb-0">{todayStr}</p>
         </div>
-        <button onClick={toggleOpen} style={{ ...s.toggleBtn, background: isOpen ? 'var(--mint)' : 'var(--ink-300)' }}>
-          <span style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: isOpen ? '#fff' : 'var(--ink-500)',
-            animation: isOpen ? 'pulse 2s infinite' : 'none',
-            flexShrink: 0,
-          }} />
+        <button
+          onClick={toggleOpen}
+          className="inline-flex items-center gap-2 py-2 px-[18px] rounded-[var(--r-pill)] border-0 text-white text-[13px] font-bold cursor-pointer transition-[background_.15s_ease]"
+          style={{ background: isOpen ? 'var(--mint)' : 'var(--ink-300)' }}
+        >
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{
+              background: isOpen ? '#fff' : 'var(--ink-500)',
+              animation: isOpen ? 'pulse 2s infinite' : 'none',
+            }}
+          />
           {isOpen ? '영업 중' : '영업 종료'}
         </button>
       </div>
 
       {/* Alert banner */}
       {stats.pendingPayments > 0 && (
-        <Link href={`/s/${store.slug}/admin/payments`} style={s.alertBanner}>
-          <span style={s.alertDot} />
+        <Link
+          href={`/s/${store.slug}/admin/payments`}
+          className="flex items-center gap-[10px] py-3 px-[18px] rounded-[var(--r-md)] text-[#8e0f0f] text-sm font-medium no-underline mb-5 transition-[background_.12s_ease]"
+          style={{
+            background: 'color-mix(in oklab, var(--crim) 8%, white)',
+            border: '1px solid color-mix(in oklab, var(--crim) 20%, white)',
+          }}
+        >
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ background: 'var(--crim)', animation: 'alertPing 2s infinite' }}
+          />
           <span>입금 대기 중인 주문이 <strong>{stats.pendingPayments}건</strong> 있어요</span>
-          <span style={{ marginLeft: 'auto', fontSize: 13, opacity: 0.8 }}>확인하기 &rarr;</span>
+          <span className="ml-auto text-[13px] opacity-80">확인하기 &rarr;</span>
         </Link>
       )}
 
       {/* Stats row */}
-      <div style={s.statsRow}>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>오늘 총 주문</div>
-          <div style={s.statValue} className="numeric">{stats.totalOrders}</div>
+      <div className="grid grid-cols-4 gap-3 mb-5">
+        <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">오늘 총 주문</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{stats.totalOrders}</div>
         </div>
-        <div style={{ ...s.statCard, ...s.statCardMint }}>
-          <div style={s.statLabel}>입금 확인</div>
-          <div style={{ ...s.statValue, color: 'var(--mint)' }} className="numeric">{stats.confirmedPayments}</div>
+        <div
+          className="border rounded-[var(--r-lg)] py-[14px] px-4"
+          style={{
+            background: 'color-mix(in oklab, var(--mint) 6%, white)',
+            border: '1px solid color-mix(in oklab, var(--mint) 18%, white)',
+          }}
+        >
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">입금 확인</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] text-[var(--mint)] numeric">{stats.confirmedPayments}</div>
         </div>
-        <div style={{ ...s.statCard, ...s.statCardWarn }}>
-          <div style={s.statLabel}>입금 대기</div>
-          <div style={{ ...s.statValue, color: 'var(--crim)' }} className="numeric">{stats.pendingPayments}</div>
+        <div
+          className="border rounded-[var(--r-lg)] py-[14px] px-4"
+          style={{
+            background: 'color-mix(in oklab, var(--crim) 5%, white)',
+            border: '1px solid color-mix(in oklab, var(--crim) 15%, white)',
+          }}
+        >
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">입금 대기</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] text-[var(--crim)] numeric">{stats.pendingPayments}</div>
         </div>
-        <div style={s.statCard}>
-          <div style={s.statLabel}>오늘 총 매출</div>
-          <div style={s.statValue} className="numeric">{stats.totalSales.toLocaleString()}원</div>
+        <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
+          <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">오늘 총 매출</div>
+          <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{formatPrice(stats.totalSales)}</div>
         </div>
       </div>
 
       {/* Two column layout */}
-      <div style={s.columns}>
+      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
         {/* Left: Tables grid */}
-        <div style={s.panel}>
-          <div style={s.panelHeader}>
-            <h2 style={s.panelTitle}>테이블 현황</h2>
-            <span style={{ fontSize: 12, color: 'var(--ink-400)' }}>
+        <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
+          <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
+            <h2 className="text-[15px] font-bold m-0">테이블 현황</h2>
+            <span className="text-xs text-[var(--ink-400)]">
               {tables.filter((t) => t.status !== 'empty').length}/{tables.length} 이용 중
             </span>
           </div>
-          <div style={s.tablesGrid}>
+          <div className="grid gap-2 p-[14px]" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
             {tables.map((table) => (
               <div
                 key={table.id}
-                style={{
-                  ...s.tableCell,
-                  ...(table.status === 'occupied' ? s.tableCellActive : {}),
-                  ...(table.status === 'payment_pending' ? s.tableCellPending : {}),
-                  ...(table.status === 'empty' ? s.tableCellEmpty : {}),
-                }}
+                className="aspect-square rounded-[var(--r-md)] flex flex-col items-center justify-center gap-1 transition-[background_.15s_ease]"
+                style={
+                  table.status === 'occupied'
+                    ? { background: 'var(--ink-900)', color: '#fff' }
+                    : table.status === 'payment_pending'
+                    ? { background: 'color-mix(in oklab, var(--amber) 14%, white)', border: '2px solid var(--amber)' }
+                    : { border: '2px dashed var(--ink-200)', background: 'transparent' }
+                }
               >
-                <div style={s.tableNumber}>{table.number}</div>
-                <div style={s.tableStatus}>
+                <div className="text-xl font-extrabold leading-none">{table.number}</div>
+                <div className="text-[10px] font-medium opacity-70 leading-[1.3]">
                   {table.status === 'payment_pending' && (
-                    <span style={{
-                      display: 'inline-block',
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--amber)',
-                      animation: 'ping 2s infinite',
-                      marginRight: 4,
-                      verticalAlign: 'middle',
-                    }} />
+                    <span
+                      className="inline-block w-[6px] h-[6px] rounded-full mr-1 align-middle"
+                      style={{ background: 'var(--amber)', animation: 'ping 2s infinite' }}
+                    />
                   )}
                   {tableStatusLabel(table.status)}
                 </div>
@@ -294,57 +303,61 @@ export default function DashboardPage() {
             ))}
             {/* Show placeholder cells if fewer than 15 tables */}
             {tables.length < 15 && Array.from({ length: Math.max(0, 15 - tables.length) }).map((_, i) => (
-              <div key={`empty-${i}`} style={{ ...s.tableCell, ...s.tableCellEmpty }}>
-                <div style={s.tableNumber}>-</div>
-                <div style={s.tableStatus}>미사용</div>
+              <div
+                key={`empty-${i}`}
+                className="aspect-square rounded-[var(--r-md)] flex flex-col items-center justify-center gap-1 transition-[background_.15s_ease]"
+                style={{ border: '2px dashed var(--ink-200)', background: 'transparent' }}
+              >
+                <div className="text-xl font-extrabold leading-none">-</div>
+                <div className="text-[10px] font-medium opacity-70 leading-[1.3]">미사용</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* Sales donut */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <h2 style={s.panelTitle}>매출 현황</h2>
+          <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
+            <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
+              <h2 className="text-[15px] font-bold m-0">매출 현황</h2>
             </div>
             {hasData && stats.totalSales > 0 ? (
-              <div style={s.donutWrap}>
+              <div className="flex items-center gap-6 py-5 px-[18px]">
                 <div
+                  className="w-[120px] h-[120px] rounded-full relative shrink-0 flex items-center justify-center"
                   style={{
-                    ...s.donut,
                     background: `conic-gradient(var(--mint) 0% ${mintPct}%, var(--amber) ${mintPct}% ${mintPct + amberPct}%, var(--ink-200) ${mintPct + amberPct}% 100%)`,
                   }}
                 >
-                  <div style={s.donutCenter}>
-                    <div style={{ fontSize: 18, fontWeight: 700 }} className="numeric">
+                  <div className="w-[72px] h-[72px] rounded-full bg-[var(--white)] flex flex-col items-center justify-center">
+                    <div className="text-lg font-bold numeric">
                       {stats.totalSales.toLocaleString()}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>원</div>
+                    <div className="text-[11px] text-[var(--ink-400)]">원</div>
                   </div>
                 </div>
-                <div style={s.donutLegend}>
-                  <div style={s.legendItem}>
-                    <span style={{ ...s.legendDot, background: 'var(--mint)' }} />
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-[var(--ink-600)]">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--mint)' }} />
                     입금 확인 {mintPct}%
                   </div>
-                  <div style={s.legendItem}>
-                    <span style={{ ...s.legendDot, background: 'var(--amber)' }} />
+                  <div className="flex items-center gap-2 text-xs font-medium text-[var(--ink-600)]">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--amber)' }} />
                     입금 대기 {amberPct}%
                   </div>
-                  <div style={s.legendItem}>
-                    <span style={{ ...s.legendDot, background: 'var(--ink-200)' }} />
+                  <div className="flex items-center gap-2 text-xs font-medium text-[var(--ink-600)]">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--ink-200)' }} />
                     기타 {restPct}%
                   </div>
                 </div>
               </div>
             ) : (
-              <div style={s.donutEmpty}>
-                <div style={{ fontSize: 13, color: 'var(--ink-400)', fontWeight: 500, textAlign: 'center' }}>
+              <div className="flex flex-col items-center justify-center py-10 px-[18px] min-h-[160px]">
+                <div className="text-[13px] text-[var(--ink-400)] font-medium text-center">
                   아직 주문이 없습니다
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-300)', marginTop: 6, textAlign: 'center' }}>
+                <div className="text-[11px] text-[var(--ink-300)] mt-[6px] text-center">
                   첫 주문이 들어오면 매출 현황이 표시됩니다
                 </div>
               </div>
@@ -352,33 +365,35 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent orders */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <h2 style={s.panelTitle}>최근 주문</h2>
-              <Link href={`/s/${store.slug}/admin/payments`} style={{ fontSize: 12, color: 'var(--ink-400)', textDecoration: 'none' }}>
+          <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
+            <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
+              <h2 className="text-[15px] font-bold m-0">최근 주문</h2>
+              <Link href={`/s/${store.slug}/admin/payments`} className="text-xs text-[var(--ink-400)] no-underline">
                 전체 보기 &rarr;
               </Link>
             </div>
-            <div style={s.orderList}>
+            <div className="flex flex-col">
               {recentOrders.length === 0 && (
-                <div style={{ padding: 20, textAlign: 'center', color: 'var(--ink-400)', fontSize: 13 }}>
+                <div className="p-5 text-center text-[var(--ink-400)] text-[13px]">
                   오늘 주문이 없어요
                 </div>
               )}
               {recentOrders.map((order) => (
-                <div key={order.id} style={s.orderRow}>
-                  <span style={s.orderTableChip}>{order.table_number}</span>
-                  <div style={s.orderInfo}>
-                    <div style={s.orderName}>
+                <div key={order.id} className="flex items-center gap-3 py-3 px-[18px] border-b border-[var(--ink-050)]">
+                  <span className="w-8 h-8 rounded-[var(--r-sm)] bg-[var(--ink-900)] text-white flex items-center justify-center text-[13px] font-bold shrink-0">
+                    {order.table_number}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-semibold leading-[1.3]">
                       {order.customer_name ?? `테이블 ${order.table_number}`}
                     </div>
-                    <div style={s.orderItems}>{order.items}</div>
+                    <div className="text-xs text-[var(--ink-400)] whitespace-nowrap overflow-hidden text-ellipsis leading-[1.4]">{order.items}</div>
                   </div>
-                  <div style={s.orderRight}>
-                    <div style={s.orderAmount} className="numeric">
-                      {order.final_amount.toLocaleString()}원
+                  <div className="text-right shrink-0">
+                    <div className="text-[13px] font-bold leading-[1.3] numeric">
+                      {formatPrice(order.final_amount)}
                     </div>
-                    <div style={s.orderTime}>{timeAgo(order.created_at)}</div>
+                    <div className="text-[11px] text-[var(--ink-400)] leading-[1.4]">{formatTimeAgo(order.created_at)}</div>
                   </div>
                 </div>
               ))}
@@ -390,267 +405,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  page: {
-    padding: '24px 28px 40px',
-    maxWidth: 1060,
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 800,
-    margin: 0,
-    lineHeight: 1.3,
-  },
-  date: {
-    fontSize: 13,
-    color: 'var(--ink-400)',
-    margin: '2px 0 0',
-  },
-  toggleBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '8px 18px',
-    borderRadius: 'var(--r-pill)',
-    border: 0,
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontFamily: 'var(--f-sans)',
-    transition: 'background .15s ease',
-  },
-  alertBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '12px 18px',
-    borderRadius: 'var(--r-md)',
-    background: 'color-mix(in oklab, var(--crim) 8%, white)',
-    border: '1px solid color-mix(in oklab, var(--crim) 20%, white)',
-    color: '#8e0f0f',
-    fontSize: 14,
-    fontWeight: 500,
-    textDecoration: 'none',
-    marginBottom: 20,
-    transition: 'background .12s ease',
-  },
-  alertDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    background: 'var(--crim)',
-    animation: 'alertPing 2s infinite',
-    flexShrink: 0,
-  },
-  statsRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    background: 'var(--white)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    padding: '14px 16px',
-  },
-  statCardMint: {
-    background: 'color-mix(in oklab, var(--mint) 6%, white)',
-    border: '1px solid color-mix(in oklab, var(--mint) 18%, white)',
-  },
-  statCardWarn: {
-    background: 'color-mix(in oklab, var(--crim) 5%, white)',
-    border: '1px solid color-mix(in oklab, var(--crim) 15%, white)',
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: 500,
-    color: 'var(--ink-400)',
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 26,
-    fontWeight: 800,
-    lineHeight: 1.2,
-    letterSpacing: '-0.02em',
-  },
-  columns: {
-    display: 'grid',
-    gridTemplateColumns: '1.4fr 1fr',
-    gap: 16,
-    alignItems: 'start',
-  },
-  panel: {
-    background: 'var(--white)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    overflow: 'hidden',
-  },
-  panelHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px 18px',
-    borderBottom: '1px solid var(--ink-100)',
-  },
-  panelTitle: {
-    fontSize: 15,
-    fontWeight: 700,
-    margin: 0,
-  },
-  tablesGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, 1fr)',
-    gap: 8,
-    padding: 14,
-  },
-  tableCell: {
-    aspectRatio: '1/1',
-    borderRadius: 'var(--r-md)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    transition: 'background .15s ease',
-  },
-  tableCellEmpty: {
-    border: '2px dashed var(--ink-200)',
-    background: 'transparent',
-  },
-  tableCellActive: {
-    background: 'var(--ink-900)',
-    color: '#fff',
-  },
-  tableCellPending: {
-    background: 'color-mix(in oklab, var(--amber) 14%, white)',
-    border: '2px solid var(--amber)',
-  },
-  tableNumber: {
-    fontSize: 20,
-    fontWeight: 800,
-    lineHeight: 1,
-  },
-  tableStatus: {
-    fontSize: 10,
-    fontWeight: 500,
-    opacity: 0.7,
-    lineHeight: 1.3,
-  },
-  donutWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 24,
-    padding: '20px 18px',
-  },
-  donutEmpty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '40px 18px',
-    minHeight: 160,
-  },
-  donut: {
-    width: 120,
-    height: 120,
-    borderRadius: '50%',
-    position: 'relative',
-    flexShrink: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutCenter: {
-    width: 72,
-    height: 72,
-    borderRadius: '50%',
-    background: 'var(--white)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donutLegend: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 12,
-    fontWeight: 500,
-    color: 'var(--ink-600)',
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: '50%',
-    flexShrink: 0,
-  },
-  orderList: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  orderRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 18px',
-    borderBottom: '1px solid var(--ink-050)',
-  },
-  orderTableChip: {
-    width: 32,
-    height: 32,
-    borderRadius: 'var(--r-sm)',
-    background: 'var(--ink-900)',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 13,
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  orderInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  orderName: {
-    fontSize: 13,
-    fontWeight: 600,
-    lineHeight: 1.3,
-  },
-  orderItems: {
-    fontSize: 12,
-    color: 'var(--ink-400)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    lineHeight: 1.4,
-  },
-  orderRight: {
-    textAlign: 'right',
-    flexShrink: 0,
-  },
-  orderAmount: {
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: 1.3,
-  },
-  orderTime: {
-    fontSize: 11,
-    color: 'var(--ink-400)',
-    lineHeight: 1.4,
-  },
-};

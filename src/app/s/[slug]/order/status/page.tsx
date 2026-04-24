@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { OrderStatus, ServingMode } from '@/lib/database.types';
 import { useStore } from '../../StoreProvider';
+import { formatPrice } from '@/lib/formatters';
 
 interface CustomerOrder {
   order_id: number;
@@ -244,7 +245,7 @@ function OrderStatusPage() {
                   )}
                 </div>
                 <span className="numeric" style={{ fontWeight: 600, fontSize: 14, flexShrink: 0 }}>
-                  {(item.unit_price * item.quantity).toLocaleString()}원
+                  {formatPrice(item.unit_price * item.quantity)}
                 </span>
               </div>
             ))}
@@ -254,7 +255,7 @@ function OrderStatusPage() {
               fontWeight: 700, fontSize: 16, background: 'var(--surface-2)',
             }}>
               <span>합계</span>
-              <span className="numeric">{(order?.final_amount ?? 0).toLocaleString()}원</span>
+              <span className="numeric">{formatPrice(order?.final_amount ?? 0)}</span>
             </div>
           </section>
 

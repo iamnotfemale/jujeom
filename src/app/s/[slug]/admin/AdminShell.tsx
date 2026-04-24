@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '../StoreProvider';
+import type { StoreRole } from '@/lib/types/store';
 
-export type AdminRole = 'owner' | 'manager' | 'kitchen';
+/** @deprecated Use StoreRole from \@/lib/types/store instead */
+export type AdminRole = StoreRole;
 
 export function useAdminStoreName(): string {
   return useStore().name;
@@ -20,7 +22,7 @@ interface NavItem {
   external?: boolean;
 }
 
-const ROLE_LABEL: Record<AdminRole, string> = {
+const ROLE_LABEL: Record<StoreRole, string> = {
   owner: '소유자',
   manager: '매니저',
   kitchen: '주방',
@@ -33,7 +35,7 @@ export default function AdminShell({
 }: {
   children: React.ReactNode;
   userEmail: string;
-  role: AdminRole;
+  role: StoreRole;
 }) {
   const store = useStore();
   const pathname = usePathname();
@@ -91,6 +93,9 @@ export default function AdminShell({
         { icon: '▦', label: '테이블 관리', href: `/s/${store.slug}/admin/tables` },
         { icon: '☰', label: '메뉴 관리', href: `/s/${store.slug}/admin/menu`, count: menuCount },
         { icon: '₩', label: '결제 내역', href: `/s/${store.slug}/admin/payments`, count: paymentPendingCount },
+        ...(['owner', 'manager'].includes(role)
+          ? [{ icon: '✦', label: '팀 관리', href: `/s/${store.slug}/admin/members` }]
+          : []),
       ],
     },
     {

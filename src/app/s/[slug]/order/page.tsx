@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '../StoreProvider';
+import { cartStorageKey } from '@/lib/types/cart';
 
 interface OrderRow {
   id: number;
@@ -27,7 +28,7 @@ function LandingContent() {
   // 테이블 진입 시 이 테이블의 장바구니 초기화
   useEffect(() => {
     try {
-      localStorage.removeItem(`cart:${store.slug}:${table}`);
+      localStorage.removeItem(cartStorageKey(store.slug, table));
     } catch {
       /* ignore */
     }

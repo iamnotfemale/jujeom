@@ -67,7 +67,8 @@ export default function DashboardClient({
       setShowCreate(false);
       setNewName('');
       setNewSlug('');
-      await fetchStores();
+      const slug: string = json.store?.slug ?? json.slug ?? newSlug;
+      router.push(`/s/${slug}/admin/dashboard`);
     } finally {
       setCreating(false);
     }
@@ -77,17 +78,17 @@ export default function DashboardClient({
   const canCreate = ownedCount < MAX_STORES;
 
   return (
-    <div style={s.wrap}>
-      <div style={s.inner}>
-        <header style={s.header}>
-          <div style={s.brandRow}>
-            <div style={s.brandLogo}>주</div>
+    <div className="min-h-[100dvh] bg-[var(--paper)] px-5 pt-8 pb-[60px]">
+      <div className="max-w-[1100px] mx-auto">
+        <header className="flex justify-between items-center mb-7 gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-[var(--neon)] flex items-center justify-center font-extrabold text-lg">주</div>
             <div>
-              <div style={s.brandName}>내 가게</div>
-              <div style={s.brandSub}>{userEmail}</div>
+              <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 가게</div>
+              <div className="text-xs text-[var(--text-3)] mt-[2px]">{userEmail}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="flex gap-2 items-center">
             <Link href="/auth/logout" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
               로그아웃
             </Link>
@@ -104,38 +105,42 @@ export default function DashboardClient({
         </header>
 
         {loading ? (
-          <div style={s.empty}>불러오는 중…</div>
+          <div className="my-10 py-12 px-8 text-center bg-[var(--surface)] rounded-[var(--r-lg)] border border-dashed border-[var(--ink-200)]">불러오는 중…</div>
         ) : stores.length === 0 ? (
-          <div style={s.empty}>
-            <div style={s.emptyIcon}>🍻</div>
-            <div style={s.emptyTitle}>아직 가게가 없어요</div>
-            <div style={s.emptySub}>
-              우측 상단의 <strong style={{ color: 'var(--ink-900)' }}>+ 새 가게</strong>를 눌러 첫 가게를 만들어 보세요.
+          <div className="my-10 py-12 px-8 text-center bg-[var(--surface)] rounded-[var(--r-lg)] border border-dashed border-[var(--ink-200)]">
+            <div className="text-[40px] mb-3">🍻</div>
+            <div className="text-[17px] font-extrabold text-[var(--ink-900)] mb-[6px]">아직 가게가 없어요</div>
+            <div className="text-sm text-[var(--text-2)] leading-relaxed">
+              우측 상단의 <strong className="text-[var(--ink-900)]">+ 새 가게</strong>를 눌러 첫 가게를 만들어 보세요.
             </div>
           </div>
         ) : (
-          <div style={s.grid}>
+          <div className="grid gap-[14px] grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
             {stores.map(({ store, role }) => (
-              <Link key={store.id} href={`/s/${store.slug}/admin/dashboard`} style={s.card}>
-                <div style={s.cardHead}>
-                  <div style={s.cardName}>{store.name}</div>
+              <Link
+                key={store.id}
+                href={`/s/${store.slug}/admin/dashboard`}
+                className="bg-[var(--surface)] rounded-[var(--r-lg)] p-[18px] no-underline text-inherit border border-[var(--border)] flex flex-col gap-[10px] shadow-[var(--shadow-1)] transition-[transform_box-shadow] duration-[100ms,150ms] ease"
+              >
+                <div className="flex justify-between items-center gap-2">
+                  <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">{store.name}</div>
                   <span className={`badge ${roleBadgeClass(role)}`} style={{ fontSize: 11 }}>
                     {labelRole(role)}
                   </span>
                 </div>
 
-                <div style={s.cardSlug}>
-                  <code style={s.slug}>/s/{store.slug}</code>
+                <div>
+                  <code className="text-xs text-[var(--ink-600)] bg-[var(--ink-050)] py-[3px] px-2 rounded-[var(--r-sm)] font-[var(--f-sans)]">/s/{store.slug}</code>
                 </div>
 
-                <div style={s.cardFoot}>
+                <div className="flex gap-2 items-center mt-1">
                   <span
                     className={`badge ${store.is_open ? 'badge-mint' : 'badge-neutral'}`}
                     style={{ fontSize: 11 }}
                   >
                     {store.is_open ? '영업 중' : '영업 종료'}
                   </span>
-                  <span style={s.mode}>
+                  <span className="text-xs text-[var(--text-3)] font-medium">
                     {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
                   </span>
                 </div>
@@ -144,56 +149,65 @@ export default function DashboardClient({
           </div>
         )}
 
-        <div style={s.footerHint}>
-          유저당 최대 <strong style={{ color: 'var(--ink-900)' }}>{MAX_STORES}개</strong>의 가게를 소유할 수 있습니다
+        <div className="mt-7 text-[13px] text-[var(--text-3)] text-center">
+          유저당 최대 <strong className="text-[var(--ink-900)]">{MAX_STORES}개</strong>의 가게를 소유할 수 있습니다
           (현재 <span className="numeric">{ownedCount}/{MAX_STORES}</span>).
         </div>
       </div>
 
       {showCreate && (
-        <div style={s.modalBackdrop} onClick={() => !creating && setShowCreate(false)}>
-          <form onSubmit={onCreate} style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <h2 style={s.modalTitle}>새 가게 만들기</h2>
-            <p style={s.modalSub}>축제용 주점 한 곳을 만들 거예요. 이름은 QR과 손님 화면에 그대로 표시됩니다.</p>
+        <div
+          className="fixed inset-0 bg-[rgba(14,18,32,.45)] backdrop-blur-[4px] flex items-center justify-center p-5 z-[100] [animation:fadeIn_.15s_ease]"
+          onClick={() => !creating && setShowCreate(false)}
+        >
+          <form
+            onSubmit={onCreate}
+            className="w-full max-w-[420px] bg-[var(--surface)] rounded-[var(--r-xl)] p-7 flex flex-col gap-[6px] border border-[var(--border)] shadow-[var(--shadow-3)] [animation:pop_.2s_ease]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-1">새 가게 만들기</h2>
+            <p className="text-[13px] text-[var(--text-2)] leading-relaxed mb-3">축제용 주점 한 곳을 만들 거예요. 이름은 QR과 손님 화면에 그대로 표시됩니다.</p>
 
-            <label style={s.label}>가게 이름</label>
+            <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">가게 이름</label>
             <input
               required
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              style={s.input}
+              className="py-3 px-[14px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-900)] text-[15px] font-[var(--f-sans)] outline-none"
               maxLength={60}
               placeholder="예: 고대 축제 주점"
             />
 
-            <label style={s.label}>slug (URL) — 비우면 자동</label>
+            <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">slug (URL) — 비우면 자동</label>
             <input
               value={newSlug}
               onChange={(e) => setNewSlug(e.target.value)}
-              style={s.input}
+              className="py-3 px-[14px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-900)] text-[15px] font-[var(--f-sans)] outline-none"
               placeholder="예: ku-festival"
               pattern="^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$"
             />
-            <div style={s.hint}>영소문자·숫자·하이픈만 3~50자</div>
+            <div className="text-[11px] text-[var(--text-3)] mt-1">영소문자·숫자·하이픈만 3~50자</div>
 
-            {error && <div style={s.error}>{error}</div>}
+            {error && (
+              <div className="mt-3 py-[10px] px-3 bg-[color-mix(in_oklab,var(--crim)_10%,white)] border border-[color-mix(in_oklab,var(--crim)_30%,white)] rounded-[var(--r-sm)] text-[13px] text-[#8e0f0f]">
+                {error}
+              </div>
+            )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <div className="flex gap-2 mt-4">
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
                 disabled={creating}
-                className="btn btn-ghost"
-                style={{ flex: 1 }}
+                className="btn btn-ghost flex-1"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={creating}
-                className="btn btn-accent"
-                style={{ flex: 1 }}
+                className="btn btn-accent flex-1"
               >
                 {creating ? '생성 중…' : '생성'}
               </button>
@@ -224,142 +238,3 @@ function roleBadgeClass(r: StoreCard['role']): string {
   if (r === 'manager') return 'badge-mint';
   return 'badge-amber';
 }
-
-const s: Record<string, React.CSSProperties> = {
-  wrap: {
-    minHeight: '100dvh',
-    background: 'var(--paper)',
-    padding: '32px 20px 60px',
-  },
-  inner: { maxWidth: 1100, margin: '0 auto' },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 28,
-    gap: 16,
-    flexWrap: 'wrap',
-  },
-  brandRow: { display: 'flex', alignItems: 'center', gap: 12 },
-  brandLogo: {
-    width: 42,
-    height: 42,
-    borderRadius: 'var(--r-sm)',
-    background: 'var(--ink-900)',
-    color: 'var(--neon)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: 18,
-  },
-  brandName: { fontSize: 18, fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.02em' },
-  brandSub: { fontSize: 12, color: 'var(--text-3)', marginTop: 2 },
-  grid: {
-    display: 'grid',
-    gap: 14,
-    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-  },
-  card: {
-    background: 'var(--surface)',
-    borderRadius: 'var(--r-lg)',
-    padding: 18,
-    textDecoration: 'none',
-    color: 'inherit',
-    border: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-    boxShadow: 'var(--shadow-1)',
-    transition: 'transform .1s ease, box-shadow .15s ease',
-  },
-  cardHead: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardName: { fontSize: 17, fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.02em' },
-  cardSlug: {},
-  slug: {
-    fontSize: 12,
-    color: 'var(--ink-600)',
-    background: 'var(--ink-050)',
-    padding: '3px 8px',
-    borderRadius: 'var(--r-sm)',
-    fontFamily: 'var(--f-sans)',
-  },
-  cardFoot: { display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 },
-  mode: { fontSize: 12, color: 'var(--text-3)', fontWeight: 500 },
-  empty: {
-    margin: '40px 0',
-    padding: '48px 32px',
-    textAlign: 'center',
-    background: 'var(--surface)',
-    borderRadius: 'var(--r-lg)',
-    border: '1px dashed var(--ink-200)',
-  },
-  emptyIcon: { fontSize: 40, marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: 800, color: 'var(--ink-900)', marginBottom: 6 },
-  emptySub: { fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6 },
-  footerHint: {
-    marginTop: 28,
-    fontSize: 13,
-    color: 'var(--text-3)',
-    textAlign: 'center',
-  },
-  modalBackdrop: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(14,18,32,.45)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    zIndex: 100,
-    animation: 'fadeIn .15s ease',
-  },
-  modal: {
-    width: '100%',
-    maxWidth: 420,
-    background: 'var(--surface)',
-    borderRadius: 'var(--r-xl)',
-    padding: 28,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    border: '1px solid var(--border)',
-    boxShadow: 'var(--shadow-3)',
-    animation: 'pop .2s ease',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: 'var(--ink-900)',
-    letterSpacing: '-0.02em',
-    marginBottom: 4,
-  },
-  modalSub: { fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6, marginBottom: 12 },
-  label: { fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginTop: 10 },
-  input: {
-    padding: '12px 14px',
-    borderRadius: 'var(--r-md)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface-2)',
-    color: 'var(--ink-900)',
-    fontSize: 15,
-    fontFamily: 'var(--f-sans)',
-    outline: 'none',
-  },
-  hint: { fontSize: 11, color: 'var(--text-3)', marginTop: 4 },
-  error: {
-    marginTop: 12,
-    padding: '10px 12px',
-    background: 'color-mix(in oklab, var(--crim) 10%, white)',
-    border: '1px solid color-mix(in oklab, var(--crim) 30%, white)',
-    borderRadius: 'var(--r-sm)',
-    fontSize: 13,
-    color: '#8e0f0f',
-  },
-};

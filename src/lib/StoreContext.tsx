@@ -1,21 +1,7 @@
-'use client';
-
-import { createContext, useContext } from 'react';
-
-interface StoreContextValue {
-  storeName: string;
-}
-
-const StoreContext = createContext<StoreContextValue>({ storeName: '주점' });
-
-export function StoreProvider({ children, initialName }: { children: React.ReactNode; initialName: string }) {
-  return (
-    <StoreContext.Provider value={{ storeName: initialName }}>
-      {children}
-    </StoreContext.Provider>
-  );
-}
-
-export function useStoreName() {
-  return useContext(StoreContext).storeName;
-}
+/**
+ * @deprecated This file is a legacy stub.
+ * Use StoreProvider from \@/app/s/[slug]/StoreProvider instead.
+ * This file is kept to avoid breaking any future accidental imports.
+ */
+export { useStore, default as StoreProvider } from '@/app/s/[slug]/StoreProvider';
+export type { StoreInfo } from '@/app/s/[slug]/StoreProvider';

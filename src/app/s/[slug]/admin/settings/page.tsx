@@ -47,17 +47,59 @@ export default function SettingsPage() {
   };
   const [form, setForm] = useState<Editable>(initial);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const update = <K extends keyof Editable>(k: K, v: Editable[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
   };
 
+  const handleLogoUpload = async (file: File) => {
+    setLogoUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`/api/admin/${store.slug}/logo`, {
+      method: 'POST',
+      body: fd,
+    });
+    const json = (await res.json()) as { logo_url?: string; error?: string };
+    setLogoUploading(false);
+    if (!res.ok) {
+      showToast(
+        json.error === 'file_too_large'
+          ? '2MB 이하 이미지만 가능합니다'
+          : json.error === 'invalid_type'
+            ? '이미지 파일(JPG, PNG, WEBP, GIF)만 가능합니다'
+            : '업로드 실패',
+        'error',
+      );
+      return;
+    }
+    update('logo_url', json.logo_url ?? '');
+    showToast('로고가 업데이트됐습니다', 'success');
+  };
+
+  const handleLogoDelete = async () => {
+    const ok = await showConfirm({
+      title: '로고 삭제',
+      message: '로고를 삭제할까요?',
+      confirmText: '삭제',
+      danger: true,
+    });
+    if (!ok) return;
+    await fetch(`/api/admin/${store.slug}/logo`, { method: 'DELETE' });
+    update('logo_url', '');
+    showToast('로고가 삭제됐습니다', 'success');
+  };
+
   const handleSave = async () => {
     setSaving(true);
+    // logo_url은 별도 API로만 처리 — PATCH body에서 제외
+    const { logo_url: _logoUrl, ...rest } = form;
     const { error } = await adminApi(`/api/stores/${store.slug}`, {
       method: 'PATCH',
-      body: form,
+      body: rest,
     });
     setSaving(false);
     if (error) {
@@ -89,11 +131,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={s.wrap}>
-      <div style={s.inner}>
-        <header style={s.header}>
-          <h1 style={s.h1}>설정</h1>
-          <p style={s.sub}>이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
+    <div className="min-h-full bg-[var(--bg)] px-8 pt-8 pb-20">
+      <div className="max-w-[780px] mx-auto">
+        <header className="mb-7">
+          <h1 className="text-[26px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-[6px]">설정</h1>
+          <p className="text-sm text-[var(--text-2)]">이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
         </header>
 
         <Section num="01" title="가게 정보">
@@ -101,19 +143,86 @@ export default function SettingsPage() {
             <input
               value={form.name}
               onChange={(e) => update('name', e.target.value)}
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
           <Row label="slug (URL)">
-            <input value={store.slug} disabled style={{ ...s.input, ...s.inputDisabled }} />
+            <input
+              value={store.slug}
+              disabled
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--ink-050)] text-[var(--text-3)] text-sm font-[var(--f-sans)] outline-none cursor-not-allowed"
+            />
           </Row>
           <Row label="계좌주명">
             <input
               value={form.account_holder}
               onChange={(e) => update('account_holder', e.target.value)}
               placeholder="예금주 이름 (없으면 가게 이름으로 표시)"
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
+          </Row>
+          <Row label="로고">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {form.logo_url ? (
+                <img
+                  src={form.logo_url}
+                  alt="로고"
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 12,
+                    objectFit: 'cover',
+                    border: '1px solid var(--border)',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 12,
+                    background: 'var(--ink-100)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 22,
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  酒
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoUploading}
+                  className="btn btn-ghost btn-sm"
+                >
+                  {logoUploading ? '업로드 중…' : '변경'}
+                </button>
+                {form.logo_url && (
+                  <button
+                    type="button"
+                    onClick={handleLogoDelete}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: 'var(--crim)' }}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleLogoUpload(f);
+                  e.target.value = '';
+                }}
+              />
+            </div>
           </Row>
         </Section>
 
@@ -123,7 +232,7 @@ export default function SettingsPage() {
               value={form.welcome_text}
               onChange={(e) => update('welcome_text', e.target.value)}
               placeholder="예: 어서 오세요, 즐거운 한 잔 되세요."
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
           <Row label="강조 텍스트">
@@ -131,7 +240,7 @@ export default function SettingsPage() {
               value={form.welcome_highlight}
               onChange={(e) => update('welcome_highlight', e.target.value)}
               placeholder="예: 오늘도 맛있게!"
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
           <Row label="공지사항">
@@ -139,7 +248,7 @@ export default function SettingsPage() {
               value={form.notice}
               onChange={(e) => update('notice', e.target.value)}
               rows={3}
-              style={{ ...s.input, resize: 'none' }}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none resize-none"
             />
           </Row>
           <Row label="영업 종료 메시지">
@@ -147,7 +256,7 @@ export default function SettingsPage() {
               value={form.closed_message}
               onChange={(e) => update('closed_message', e.target.value)}
               placeholder="예: 오늘 영업은 종료되었습니다."
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
         </Section>
@@ -157,7 +266,7 @@ export default function SettingsPage() {
             <select
               value={form.bank_name}
               onChange={(e) => update('bank_name', e.target.value)}
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             >
               <option value="">선택하세요</option>
               {BANK_OPTIONS.map((b) => (
@@ -172,7 +281,7 @@ export default function SettingsPage() {
               value={form.account_number}
               onChange={(e) => update('account_number', e.target.value)}
               placeholder="예: 123-456-789012"
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
           <Row label="토스 QR 링크 (선택)">
@@ -180,7 +289,7 @@ export default function SettingsPage() {
               value={form.toss_qr_url}
               onChange={(e) => update('toss_qr_url', e.target.value)}
               placeholder="https://toss.me/..."
-              style={s.input}
+              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
             />
           </Row>
         </Section>
@@ -193,7 +302,7 @@ export default function SettingsPage() {
             <Toggle checked={form.is_paused} onChange={(v) => update('is_paused', v)} />
           </Row>
           <Row label="서빙 방식">
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="flex gap-2">
               {(
                 [
                   { key: 'pickup' as const, label: '픽업', hint: '손님이 픽업대에서 가져감' },
@@ -234,10 +343,10 @@ export default function SettingsPage() {
         </Section>
 
         <Section num="06" title="데이터 초기화">
-          <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
-            축제 전 연습·테스트 데이터를 지울 때 사용하세요. <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
+          <p className="text-[13px] text-[var(--text-2)] mb-3 leading-relaxed">
+            축제 전 연습·테스트 데이터를 지울 때 사용하세요. <strong className="text-[var(--crim)]">되돌릴 수 없습니다.</strong>
           </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex gap-2 flex-wrap">
             <button type="button" onClick={() => resetData('payments')} className="btn btn-ghost btn-sm">
               결제·주문 초기화
             </button>
@@ -250,13 +359,12 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <div style={s.saveBar}>
+        <div className="flex justify-end mt-7 pt-5 border-t border-[var(--border)]">
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="btn btn-accent"
-            style={{ minWidth: 140 }}
+            className="btn btn-accent min-w-[140px]"
           >
             {saving ? '저장 중…' : '저장'}
           </button>
@@ -276,21 +384,23 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section style={sect.wrap}>
-      <header style={sect.head}>
-        <span style={sect.num}>{num}</span>
-        <h2 style={sect.title}>{title}</h2>
+    <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--r-lg)] p-6 mb-5 shadow-[var(--shadow-1)]">
+      <header className="flex items-center gap-[10px] mb-[18px]">
+        <span className="text-xs font-bold text-[var(--text-3)] [font-variant-numeric:tabular-nums] px-2 py-[3px] bg-[var(--ink-050)] rounded-[var(--r-sm)]">
+          {num}
+        </span>
+        <h2 className="text-base font-extrabold text-[var(--ink-900)] tracking-[-0.01em]">{title}</h2>
       </header>
-      <div style={sect.body}>{children}</div>
+      <div className="flex flex-col gap-[14px]">{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={row.wrap}>
-      <span style={row.label}>{label}</span>
-      <div style={row.field}>{children}</div>
+    <label className="grid gap-4 items-center" style={{ gridTemplateColumns: '160px 1fr' }}>
+      <span className="text-[13px] font-semibold text-[var(--text-2)]">{label}</span>
+      <div>{children}</div>
     </label>
   );
 }
@@ -328,74 +438,3 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     </button>
   );
 }
-
-const s: Record<string, React.CSSProperties> = {
-  wrap: { minHeight: '100%', background: 'var(--bg)', padding: '32px 32px 80px' },
-  inner: { maxWidth: 780, margin: '0 auto' },
-  header: { marginBottom: 28 },
-  h1: {
-    fontSize: 26,
-    fontWeight: 800,
-    color: 'var(--ink-900)',
-    letterSpacing: '-0.02em',
-    marginBottom: 6,
-  },
-  sub: { fontSize: 14, color: 'var(--text-2)' },
-  input: {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 'var(--r-md)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    color: 'var(--ink-900)',
-    fontSize: 14,
-    fontFamily: 'var(--f-sans)',
-    outline: 'none',
-  },
-  inputDisabled: {
-    background: 'var(--ink-050)',
-    color: 'var(--text-3)',
-    cursor: 'not-allowed',
-  },
-  saveBar: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: 28,
-    paddingTop: 20,
-    borderTop: '1px solid var(--border)',
-  },
-};
-
-const sect: Record<string, React.CSSProperties> = {
-  wrap: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    padding: 24,
-    marginBottom: 20,
-    boxShadow: 'var(--shadow-1)',
-  },
-  head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 },
-  num: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--text-3)',
-    fontVariantNumeric: 'tabular-nums',
-    padding: '3px 8px',
-    background: 'var(--ink-050)',
-    borderRadius: 'var(--r-sm)',
-  },
-  title: { fontSize: 16, fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.01em' },
-  body: { display: 'flex', flexDirection: 'column', gap: 14 },
-};
-
-const row: Record<string, React.CSSProperties> = {
-  wrap: {
-    display: 'grid',
-    gridTemplateColumns: '160px 1fr',
-    alignItems: 'center',
-    gap: 16,
-  },
-  label: { fontSize: 13, fontWeight: 600, color: 'var(--text-2)' },
-  field: {},
-};
