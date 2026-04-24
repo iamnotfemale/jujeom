@@ -1,14 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
-  const supabase = await createClient();
+
+  const cookieBuffer: Parameters<ReturnType<typeof NextResponse.json>['cookies']['set']>[] = [];
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (cookies) => {
+          cookies.forEach(({ name, value, options }) =>
+            cookieBuffer.push([name, value, options] as Parameters<ReturnType<typeof NextResponse.json>['cookies']['set']>),
+          );
+        },
+      },
+    },
+  );
+
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  if (data.session) return NextResponse.json({ ok: true, redirect: '/dashboard' });
-  return NextResponse.json({
-    ok: true,
-    info: '가입 완료! 이메일로 보낸 확인 링크를 클릭해 주세요.',
-  });
+
+  const body = data.session
+    ? { ok: true, redirect: '/dashboard' }
+    : { ok: true, info: '가입 완료! 이메일로 보낸 확인 링크를 클릭해 주세요.' };
+
+  const res = NextResponse.json(body);
+  cookieBuffer.forEach((args) => res.cookies.set(...args));
+  return res;
 }
