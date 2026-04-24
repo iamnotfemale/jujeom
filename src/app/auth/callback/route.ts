@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get('code');
-  const next = url.searchParams.get('next') || '/dashboard';
+  const rawNext = url.searchParams.get('next') || '';
+  const next = isSafeRedirect(rawNext) ? rawNext : '/dashboard';
 
   if (!code) {
     return NextResponse.redirect(new URL('/login?error=missing_code', request.url));
@@ -21,4 +22,8 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(new URL(next, request.url));
+}
+
+function isSafeRedirect(url: string): boolean {
+  return url.startsWith('/') && !url.startsWith('//') && !url.includes('://');
 }

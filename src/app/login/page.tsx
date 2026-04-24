@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const next = searchParams.get('next') || '/dashboard';
+  const rawNext = searchParams.get('next') || '';
+  const next = isSafeRedirect(rawNext) ? rawNext : '/dashboard';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,6 +106,10 @@ export default function LoginPage() {
       <LoginForm />
     </Suspense>
   );
+}
+
+function isSafeRedirect(url: string): boolean {
+  return url.startsWith('/') && !url.startsWith('//') && !url.includes('://');
 }
 
 function mapLoginError(msg: string): string {
