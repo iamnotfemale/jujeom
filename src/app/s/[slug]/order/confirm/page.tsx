@@ -211,19 +211,14 @@ function OrderConfirmPage() {
         localStorage.removeItem(cartStorageKey(store.slug, tableNumber));
       } catch { /* ignore */ }
 
-      // Toss 딥링크 (모바일에서만)
-      // 스펙: supertoss://send?bank=<한글단축명>&accountNo=<숫자>&amount=<금액>
-      // - bank: 한글 단축형 ("국민", "카카오뱅크" 등). 잘못된 값이면 은행 선택 페이지로 빠짐.
-      // - accountNo: 하이픈/공백 제거한 숫자만
-      // - origin 파라미터는 비표준이라 전달하지 않음 (전달 시 선택 페이지로 빠질 수 있음)
+      // Toss 딥링크: bank는 한글 그대로 전달 (encodeURIComponent 금지 — 인코딩 시 은행 인식 실패)
       if (method === 'toss') {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-          const bank = normalizeBankName(bankName);
-          const cleanAccountNo = accountNo.replace(/\D/g, '');
-          window.location.href = `supertoss://send?bank=${encodeURIComponent(bank)}&accountNo=${cleanAccountNo}&amount=${row.total}`;
-        }
-        // 데스크톱: 그냥 redirect
+        const bank = normalizeBankName(bankName);
+        const cleanAccountNo = accountNo.replace(/\D/g, '');
+        // 한글을 raw로 포함한 URL — window.location.href 할당 시 브라우저가 스킴 핸들러로 전달
+        window.location.href = `supertoss://send?bank=${bank}&accountNo=${cleanAccountNo}&amount=${row.total}`;
+        // 300ms 대기: 딥링크가 앱에 전달된 뒤 상태 페이지로 이동
+        await new Promise((r) => setTimeout(r, 300));
       }
 
       // 상태 페이지로 이동
