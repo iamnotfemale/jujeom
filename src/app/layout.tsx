@@ -6,7 +6,7 @@ import { ConfirmProvider } from '@/components/ConfirmProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://charim.vercel.app'
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://jujeom.vercel.app'
   ),
   title: { default: '차림', template: '%s | 차림' },
   description: '대학 축제 주점 운영 서비스',
