@@ -160,7 +160,7 @@ export default function DashboardClient({
         {/* ── 헤더 ── */}
         <header className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-[var(--neon)] flex items-center justify-center font-extrabold text-lg">주</div>
+            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">🎆</div>
             <div>
               <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 주점</div>
               <div className="text-xs text-[var(--text-3)] mt-[2px]">{userEmail}</div>
@@ -373,43 +373,59 @@ function StoreBoothCard({
   onSettings: ((card: StoreCard) => void) | null;
 }) {
   const { store, role } = card;
+  const isOpen = store.is_open;
+
   return (
-    <div className="bg-white rounded-[18px] border border-[var(--border)] flex flex-col overflow-hidden shadow-[var(--shadow-1)]">
+    <div
+      className="rounded-[18px] border flex flex-col overflow-hidden shadow-[var(--shadow-1)]"
+      style={{ background: '#fff', borderColor: 'var(--border)', minHeight: 148 }}
+    >
       <Link
         href={`/s/${store.slug}/admin/dashboard`}
         className="p-[18px] flex flex-col gap-[10px] flex-1 no-underline text-inherit"
       >
-        {/* 이름 + 역할 */}
+        {/* 이름 + 역할 뱃지 */}
         <div className="flex justify-between items-start gap-2">
           <div>
-            <div className="text-[15px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em] leading-[1.2]">{store.name}</div>
-            <div className="text-[11px] text-[var(--text-2)] font-semibold mt-[3px]">/s/{store.slug}</div>
+            <div className="text-[14px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em] leading-[1.2]">{store.name}</div>
+            <div className="text-[11px] font-semibold mt-[1px]" style={{ color: 'var(--text-2)' }}>/s/{store.slug}</div>
           </div>
           <span className={`badge ${roleBadgeClass(role)} shrink-0`} style={{ fontSize: 11 }}>{labelRole(role)}</span>
         </div>
 
-        {/* 상태 */}
-        <div className="flex gap-[6px] items-center text-[11px] text-[var(--text-2)] font-semibold mt-auto">
+        {/* 영업 상태 */}
+        <div className="flex gap-[6px] items-center text-[11px] font-semibold" style={{ color: 'var(--text-2)' }}>
           <span
             className="w-[6px] h-[6px] rounded-full shrink-0"
-            style={{ background: store.is_open ? 'var(--mint)' : 'var(--ink-300)' }}
+            style={{ background: isOpen ? 'var(--mint)' : 'var(--ink-300)' }}
           />
-          {store.is_open ? '영업 중' : '영업 종료'}
-          <span className="text-[var(--ink-300)]">·</span>
+          {isOpen ? '영업 중' : '영업 종료'}
+          <span style={{ color: 'var(--ink-300)' }}>·</span>
           {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
+        </div>
+
+        {/* 프로그레스 바 (영업 중 강조) */}
+        <div className="h-[4px] rounded-full overflow-hidden mt-auto" style={{ background: 'var(--ink-100)' }}>
+          <div
+            className="h-full rounded-full transition-[width] duration-500"
+            style={{ width: isOpen ? '72%' : '18%', background: 'var(--ink-900)' }}
+          />
         </div>
       </Link>
 
       {/* 설정 버튼 (소유자만) */}
       {onSettings && (
-        <div className="border-t border-[var(--border)] px-[14px] py-[9px] flex justify-end">
+        <div className="border-t px-[14px] py-[9px] flex justify-end" style={{ borderColor: 'var(--border)' }}>
           <button
             type="button"
             onClick={() => onSettings(card)}
             disabled={deleting === store.id}
-            className="text-xs font-semibold text-[var(--text-2)] hover:text-[var(--ink-900)] px-2 py-1 rounded-[var(--r-sm)] hover:bg-[var(--ink-050)] transition-colors cursor-pointer border-0 bg-transparent"
+            className="text-xs font-semibold px-2 py-1 rounded-[var(--r-sm)] transition-colors cursor-pointer border-0 bg-transparent"
+            style={{ color: 'var(--text-2)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-900)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--ink-050)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-2)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
           >
-            {deleting === store.id ? '삭제 중…' : '설정'}
+            {deleting === store.id ? '삭제 중…' : '⚙ 설정'}
           </button>
         </div>
       )}

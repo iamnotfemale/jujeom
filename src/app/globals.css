@@ -76,7 +76,7 @@ body {
 .btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--ink-900); color: #fff; }
 .btn-primary:hover { background: var(--ink-700); }
-.btn-accent { background: var(--neon); color: var(--neon-ink); box-shadow: inset 0 -3px 0 rgba(58,42,0,.18); }
+.btn-accent { background: var(--neon); color: var(--neon-ink); }
 .btn-accent:hover { background: #f0d43e; }
 .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--surface-2); }

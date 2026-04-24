@@ -66,7 +66,7 @@ export default function LandingPage() {
         }
         .hero .sub { font-size: clamp(16px, 1.5vw, 19px); color: var(--text-2); margin-top: 24px; max-width: 540px; line-height: 1.55 }
         .hero-ctas { display: flex; gap: 10px; margin-top: 36px; flex-wrap: wrap }
-        .btn-accent { box-shadow: inset 0 -3px 0 rgba(58,42,0,.22) }
+        .btn-accent { box-shadow: none }
         .btn-accent:hover { background: color-mix(in oklab, var(--neon) 92%, black) }
         .hero-trust { display: flex; gap: 28px; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 13px }
         .hero-trust strong { display: block; font-size: 22px; color: var(--text); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em }
@@ -389,7 +389,8 @@ export default function LandingPage() {
             <a href="#faq">문의</a>
           </div>
           <div className="nav-cta">
-            <Link href="/signup" className="btn btn-primary btn-sm">시작하기</Link>
+            <Link href="/login" className="btn btn-ghost btn-sm">로그인</Link>
+            <Link href="/signup" className="btn btn-primary btn-sm">회원가입</Link>
           </div>
         </div>
       </nav>

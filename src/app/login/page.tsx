@@ -40,8 +40,8 @@ function LoginForm() {
         className="w-full max-w-[400px] bg-[var(--surface)] rounded-[var(--r-xl)] px-7 py-8 flex flex-col gap-2 shadow-[var(--shadow-2)] border border-[var(--border)]"
       >
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-[var(--neon)] flex items-center justify-center font-extrabold text-lg tracking-[-0.02em]">
-            주
+          <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">
+            🎆
           </div>
           <div>
             <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">차림</div>
