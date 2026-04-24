@@ -62,6 +62,7 @@ export default function TablesPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [myRole, setMyRole] = useState<'owner' | 'manager' | 'kitchen' | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
   const [tableStats, setTableStats] = useState<Record<number, { earliest: string; total: number }>>({});
@@ -71,12 +72,28 @@ export default function TablesPage() {
 
   const selectedTable = tables.find((t) => t.id === selectedId) ?? null;
   const selectedIsTable = selectedTable?.kind === 'table';
+  const canEdit = myRole === 'owner' || myRole === 'manager';
 
   /* ── Toast helper ─────────────────────── */
   const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   }, []);
+
+  /* ── Fetch current member role ─────────────────────── */
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('store_members')
+        .select('role')
+        .eq('store_id', store.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setMyRole((data as { role: 'owner' | 'manager' | 'kitchen' } | null)?.role ?? null);
+    })();
+  }, [store.id]);
 
   /* ── Fetch tables ─────────────────────── */
   const fetchTables = useCallback(async () => {
@@ -418,7 +435,7 @@ export default function TablesPage() {
   };
 
   const qrUrl = selectedTable && selectedTable.kind === 'table'
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/order?table=${selectedTable.number}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/s/${store.slug}/order/menu?table=${selectedTable.number}`
     : '';
 
   if (loading) {
@@ -436,7 +453,7 @@ export default function TablesPage() {
         style={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: toolsOpen ? `${TOOLS_W}px 1fr ${selectedTable ? DETAIL_W + 'px' : '0px'}` : `0px 1fr ${selectedTable ? DETAIL_W + 'px' : '0px'}`,
+          gridTemplateColumns: (canEdit && toolsOpen) ? `${TOOLS_W}px 1fr ${selectedTable ? DETAIL_W + 'px' : '0px'}` : `0px 1fr ${selectedTable ? DETAIL_W + 'px' : '0px'}`,
           transition: TRANSITION,
           overflow: 'hidden',
           minHeight: 0,
@@ -519,34 +536,36 @@ export default function TablesPage() {
 
         {/* ── Canvas (center) ─────────────────────── */}
         <div style={{ position: 'relative', overflow: 'auto', background: '#F2F1EA' }}>
-          {/* Toggle tools button */}
-          <button
-            onClick={() => setToolsOpen((v) => !v)}
-            style={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              zIndex: 20,
-              width: 40,
-              height: 40,
-              background: 'var(--ink-900)',
-              color: '#fff',
-              border: 0,
-              borderRadius: 'var(--r-sm)',
-              cursor: 'pointer',
-              fontSize: 18,
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--f-sans)',
-              transition: 'transform 0.28s cubic-bezier(.4,0,.2,1)',
-              transform: toolsOpen ? 'scaleX(-1)' : 'scaleX(1)',
-            }}
-            title={toolsOpen ? '패널 닫기' : '패널 열기'}
-          >
-            &#8811;
-          </button>
+          {/* Toggle tools button — only for owner/manager */}
+          {canEdit && (
+            <button
+              onClick={() => setToolsOpen((v) => !v)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                zIndex: 20,
+                width: 40,
+                height: 40,
+                background: 'var(--ink-900)',
+                color: '#fff',
+                border: 0,
+                borderRadius: 'var(--r-sm)',
+                cursor: 'pointer',
+                fontSize: 18,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--f-sans)',
+                transition: 'transform 0.28s cubic-bezier(.4,0,.2,1)',
+                transform: toolsOpen ? 'scaleX(-1)' : 'scaleX(1)',
+              }}
+              title={toolsOpen ? '패널 닫기' : '패널 열기'}
+            >
+              &#8811;
+            </button>
+          )}
 
           {/* Canvas area */}
           <div
@@ -764,21 +783,23 @@ export default function TablesPage() {
                     <br />
                     위치: <strong className="numeric">({selectedTable.position_x}, {selectedTable.position_y})</strong>
                   </div>
-                  <button
-                    className="btn btn-ghost btn-block btn-sm"
-                    style={{ color: 'var(--crim)', border: '1px solid color-mix(in oklab, var(--crim) 30%, white)' }}
-                    onClick={() =>
-                      setConfirmDialog({
-                        message: '이 블록을 삭제하시겠습니까?',
-                        onConfirm: () => {
-                          deleteSelected();
-                          setConfirmDialog(null);
-                        },
-                      })
-                    }
-                  >
-                    이 블록 삭제
-                  </button>
+                  {canEdit && (
+                    <button
+                      className="btn btn-ghost btn-block btn-sm"
+                      style={{ color: 'var(--crim)', border: '1px solid color-mix(in oklab, var(--crim) 30%, white)' }}
+                      onClick={() =>
+                        setConfirmDialog({
+                          message: '이 블록을 삭제하시겠습니까?',
+                          onConfirm: () => {
+                            deleteSelected();
+                            setConfirmDialog(null);
+                          },
+                        })
+                      }
+                    >
+                      이 블록 삭제
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
@@ -797,6 +818,7 @@ export default function TablesPage() {
                       max={20}
                       value={selectedTable.capacity}
                       onChange={(e) => updateCapacity(selectedTable.id, parseInt(e.target.value, 10))}
+                      disabled={!canEdit}
                       style={{
                         width: '100%',
                         padding: '10px 12px',
@@ -804,10 +826,11 @@ export default function TablesPage() {
                         fontWeight: 600,
                         border: '1px solid var(--border)',
                         borderRadius: 'var(--r-sm)',
-                        background: 'var(--white)',
+                        background: canEdit ? 'var(--white)' : 'var(--surface-2)',
                         color: 'var(--ink-900)',
                         fontFamily: 'var(--f-sans)',
                         outline: 'none',
+                        cursor: canEdit ? 'auto' : 'not-allowed',
                       }}
                     />
                   </div>
@@ -902,24 +925,26 @@ export default function TablesPage() {
                     )}
                   </div>
 
-                  {/* Delete this block */}
-                  <div style={{ padding: '0 20px 24px' }}>
-                    <button
-                      className="btn btn-ghost btn-block btn-sm"
-                      style={{ color: 'var(--crim)', border: '1px solid color-mix(in oklab, var(--crim) 30%, white)' }}
-                      onClick={() =>
-                        setConfirmDialog({
-                          message: `테이블 ${selectedTable.number}을(를) 삭제하시겠습니까?`,
-                          onConfirm: () => {
-                            deleteSelected();
-                            setConfirmDialog(null);
-                          },
-                        })
-                      }
-                    >
-                      이 테이블 삭제
-                    </button>
-                  </div>
+                  {/* Delete this block — only for owner/manager */}
+                  {canEdit && (
+                    <div style={{ padding: '0 20px 24px' }}>
+                      <button
+                        className="btn btn-ghost btn-block btn-sm"
+                        style={{ color: 'var(--crim)', border: '1px solid color-mix(in oklab, var(--crim) 30%, white)' }}
+                        onClick={() =>
+                          setConfirmDialog({
+                            message: `테이블 ${selectedTable.number}을(를) 삭제하시겠습니까?`,
+                            onConfirm: () => {
+                              deleteSelected();
+                              setConfirmDialog(null);
+                            },
+                          })
+                        }
+                      >
+                        이 테이블 삭제
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>

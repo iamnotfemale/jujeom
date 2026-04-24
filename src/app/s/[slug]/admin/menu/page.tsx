@@ -74,6 +74,7 @@ export default function MenuManagementPage() {
   const [catEdits, setCatEdits] = useState<{ original: string; name: string; isNew: boolean }[]>([]);
   const [catSaving, setCatSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [myRole, setMyRole] = useState<'owner' | 'manager' | 'kitchen' | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +92,27 @@ export default function MenuManagementPage() {
   useEffect(() => {
     fetchMenus();
   }, [fetchMenus]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('store_members')
+        .select('role')
+        .eq('store_id', store.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setMyRole((data as { role: 'owner' | 'manager' | 'kitchen' } | null)?.role ?? null);
+    })();
+  }, [store.id]);
+
+  const canEdit = myRole === 'owner' || myRole === 'manager';
+
+  /* ── Grid columns ────────────────────────────── */
+  const gridCols = canEdit
+    ? '28px 64px 1fr 80px 100px 108px 130px 76px'
+    : '28px 64px 1fr 80px 100px 108px 130px';
 
   /* ── Derived ──────────────────────────────────── */
   const filtered = activeCategory === '전체'
@@ -332,9 +354,11 @@ export default function MenuManagementPage() {
             {menus.length}개 메뉴 · 품절 {soldOutCount}개
           </p>
         </div>
-        <button style={S.addBtn} onClick={openAdd}>
-          ＋ 메뉴 추가
-        </button>
+        {canEdit && (
+          <button style={S.addBtn} onClick={openAdd}>
+            ＋ 메뉴 추가
+          </button>
+        )}
       </div>
 
       {/* ── Category Filter ────────────────────── */}
@@ -354,11 +378,13 @@ export default function MenuManagementPage() {
             </button>
           ))}
         </div>
-        <button style={S.catEditBtn} onClick={openCatModal}>⚙ 카테고리 편집</button>
+        {canEdit && (
+          <button style={S.catEditBtn} onClick={openCatModal}>⚙ 카테고리 편집</button>
+        )}
       </div>
 
       {/* ── Table Header ───────────────────────── */}
-      <div style={S.tableHead}>
+      <div style={{ ...S.tableHead, gridTemplateColumns: gridCols }}>
         <span />
         <span />
         <span>메뉴명</span>
@@ -366,7 +392,7 @@ export default function MenuManagementPage() {
         <span>가격</span>
         <span>재고</span>
         <span>품절</span>
-        <span>작업</span>
+        {canEdit && <span>작업</span>}
       </div>
 
       {/* ── Menu Rows ──────────────────────────── */}
@@ -377,13 +403,14 @@ export default function MenuManagementPage() {
           return (
             <div
               key={menu.id}
-              draggable
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDrop={() => handleDrop(idx)}
-              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              draggable={canEdit}
+              onDragStart={canEdit ? () => handleDragStart(idx) : undefined}
+              onDragOver={canEdit ? (e) => handleDragOver(e, idx) : undefined}
+              onDrop={canEdit ? () => handleDrop(idx) : undefined}
+              onDragEnd={canEdit ? () => { setDragIdx(null); setDragOverIdx(null); } : undefined}
               style={{
                 ...S.row,
+                gridTemplateColumns: gridCols,
                 opacity: isSoldOut ? 0.55 : 1,
                 background:
                   dragOverIdx === idx
@@ -466,18 +493,20 @@ export default function MenuManagementPage() {
               </div>
 
               {/* Actions */}
-              <div style={S.actions}>
-                <button style={S.iconBtn} onClick={() => openEdit(menu)} title="수정">
-                  ✎
-                </button>
-                <button
-                  style={{ ...S.iconBtn, color: 'var(--crim)' }}
-                  onClick={() => deleteMenu(menu.id)}
-                  title="삭제"
-                >
-                  ✕
-                </button>
-              </div>
+              {canEdit && (
+                <div style={S.actions}>
+                  <button style={S.iconBtn} onClick={() => openEdit(menu)} title="수정">
+                    ✎
+                  </button>
+                  <button
+                    style={{ ...S.iconBtn, color: 'var(--crim)' }}
+                    onClick={() => deleteMenu(menu.id)}
+                    title="삭제"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -853,7 +882,6 @@ const S: Record<string, React.CSSProperties> = {
   /* Table header */
   tableHead: {
     display: 'grid',
-    gridTemplateColumns: '28px 64px 1fr 80px 100px 108px 130px 76px',
     alignItems: 'center',
     padding: '0 16px',
     height: 38,
@@ -868,7 +896,6 @@ const S: Record<string, React.CSSProperties> = {
   /* Rows */
   row: {
     display: 'grid',
-    gridTemplateColumns: '28px 64px 1fr 80px 100px 108px 130px 76px',
     alignItems: 'center',
     padding: '10px 16px',
     borderBottom: '1px solid var(--ink-100)',

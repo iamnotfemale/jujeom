@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/admin-api';
 import { useConfirm } from '@/components/ConfirmProvider';
 import { useToast } from '@/components/ToastProvider';
 import { BANK_OPTIONS } from '@/lib/banks';
 import { useStore } from '../../StoreProvider';
+import { supabase } from '@/lib/supabase';
 
 type Editable = {
   name: string;
@@ -26,8 +28,25 @@ type Editable = {
 
 export default function SettingsPage() {
   const store = useStore();
+  const router = useRouter();
   const { showToast } = useToast();
   const { confirm: showConfirm } = useConfirm();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase
+        .from('store_members')
+        .select('role')
+        .eq('store_id', store.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          const r = (data as { role?: string } | null)?.role;
+          if (r === 'kitchen') router.replace(`/s/${store.slug}/admin/dashboard`);
+        });
+    });
+  }, [store.id, store.slug, router]);
 
   const initial: Editable = {
     name: store.name,
@@ -131,11 +150,11 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-full bg-[var(--bg)] px-8 pt-8 pb-20">
-      <div className="max-w-[780px] mx-auto">
-        <header className="mb-7">
-          <h1 className="text-[26px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-[6px]">설정</h1>
-          <p className="text-sm text-[var(--text-2)]">이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
+    <div style={s.wrap}>
+      <div style={s.inner}>
+        <header style={s.header}>
+          <h1 style={s.h1}>설정</h1>
+          <p style={s.sub}>이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
         </header>
 
         <Section num="01" title="가게 정보">
@@ -143,14 +162,14 @@ export default function SettingsPage() {
             <input
               value={form.name}
               onChange={(e) => update('name', e.target.value)}
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
           <Row label="slug (URL)">
             <input
               value={store.slug}
               disabled
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--ink-050)] text-[var(--text-3)] text-sm font-[var(--f-sans)] outline-none cursor-not-allowed"
+              style={{ ...s.input, ...s.inputDisabled }}
             />
           </Row>
           <Row label="계좌주명">
@@ -158,7 +177,7 @@ export default function SettingsPage() {
               value={form.account_holder}
               onChange={(e) => update('account_holder', e.target.value)}
               placeholder="예금주 이름 (없으면 가게 이름으로 표시)"
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
           <Row label="로고">
@@ -167,29 +186,10 @@ export default function SettingsPage() {
                 <img
                   src={form.logo_url}
                   alt="로고"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 12,
-                    objectFit: 'cover',
-                    border: '1px solid var(--border)',
-                  }}
+                  style={s.logoImg}
                 />
               ) : (
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 12,
-                    background: 'var(--ink-100)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontSize: 22,
-                    border: '1px solid var(--border)',
-                  }}
-                >
-                  酒
-                </div>
+                <div style={s.logoPlaceholder}>酒</div>
               )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -232,7 +232,7 @@ export default function SettingsPage() {
               value={form.welcome_text}
               onChange={(e) => update('welcome_text', e.target.value)}
               placeholder="예: 어서 오세요, 즐거운 한 잔 되세요."
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
           <Row label="강조 텍스트">
@@ -240,7 +240,7 @@ export default function SettingsPage() {
               value={form.welcome_highlight}
               onChange={(e) => update('welcome_highlight', e.target.value)}
               placeholder="예: 오늘도 맛있게!"
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
           <Row label="공지사항">
@@ -248,7 +248,7 @@ export default function SettingsPage() {
               value={form.notice}
               onChange={(e) => update('notice', e.target.value)}
               rows={3}
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none resize-none"
+              style={{ ...s.input, ...s.textarea }}
             />
           </Row>
           <Row label="영업 종료 메시지">
@@ -256,7 +256,7 @@ export default function SettingsPage() {
               value={form.closed_message}
               onChange={(e) => update('closed_message', e.target.value)}
               placeholder="예: 오늘 영업은 종료되었습니다."
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
         </Section>
@@ -266,7 +266,7 @@ export default function SettingsPage() {
             <select
               value={form.bank_name}
               onChange={(e) => update('bank_name', e.target.value)}
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             >
               <option value="">선택하세요</option>
               {BANK_OPTIONS.map((b) => (
@@ -281,7 +281,7 @@ export default function SettingsPage() {
               value={form.account_number}
               onChange={(e) => update('account_number', e.target.value)}
               placeholder="예: 123-456-789012"
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
           <Row label="토스 QR 링크 (선택)">
@@ -289,7 +289,7 @@ export default function SettingsPage() {
               value={form.toss_qr_url}
               onChange={(e) => update('toss_qr_url', e.target.value)}
               placeholder="https://toss.me/..."
-              className="w-full px-3 py-[10px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface)] text-[var(--ink-900)] text-sm font-[var(--f-sans)] outline-none"
+              style={s.input}
             />
           </Row>
         </Section>
@@ -302,7 +302,7 @@ export default function SettingsPage() {
             <Toggle checked={form.is_paused} onChange={(v) => update('is_paused', v)} />
           </Row>
           <Row label="서빙 방식">
-            <div className="flex gap-2">
+            <div style={{ display: 'flex', gap: 8 }}>
               {(
                 [
                   { key: 'pickup' as const, label: '픽업', hint: '손님이 픽업대에서 가져감' },
@@ -343,10 +343,11 @@ export default function SettingsPage() {
         </Section>
 
         <Section num="06" title="데이터 초기화">
-          <p className="text-[13px] text-[var(--text-2)] mb-3 leading-relaxed">
-            축제 전 연습·테스트 데이터를 지울 때 사용하세요. <strong className="text-[var(--crim)]">되돌릴 수 없습니다.</strong>
+          <p style={s.resetDesc}>
+            축제 전 연습·테스트 데이터를 지울 때 사용하세요.{' '}
+            <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
           </p>
-          <div className="flex gap-2 flex-wrap">
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" onClick={() => resetData('payments')} className="btn btn-ghost btn-sm">
               결제·주문 초기화
             </button>
@@ -359,12 +360,13 @@ export default function SettingsPage() {
           </div>
         </Section>
 
-        <div className="flex justify-end mt-7 pt-5 border-t border-[var(--border)]">
+        <div style={s.saveBar}>
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="btn btn-accent min-w-[140px]"
+            className="btn btn-accent"
+            style={{ minWidth: 140 }}
           >
             {saving ? '저장 중…' : '저장'}
           </button>
@@ -384,23 +386,21 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--r-lg)] p-6 mb-5 shadow-[var(--shadow-1)]">
-      <header className="flex items-center gap-[10px] mb-[18px]">
-        <span className="text-xs font-bold text-[var(--text-3)] [font-variant-numeric:tabular-nums] px-2 py-[3px] bg-[var(--ink-050)] rounded-[var(--r-sm)]">
-          {num}
-        </span>
-        <h2 className="text-base font-extrabold text-[var(--ink-900)] tracking-[-0.01em]">{title}</h2>
+    <section style={sect.wrap}>
+      <header style={sect.head}>
+        <span style={sect.num}>{num}</span>
+        <h2 style={sect.title}>{title}</h2>
       </header>
-      <div className="flex flex-col gap-[14px]">{children}</div>
+      <div style={sect.body}>{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="grid gap-4 items-center" style={{ gridTemplateColumns: '160px 1fr' }}>
-      <span className="text-[13px] font-semibold text-[var(--text-2)]">{label}</span>
-      <div>{children}</div>
+    <label style={row.wrap}>
+      <span style={row.label}>{label}</span>
+      <div style={row.field}>{children}</div>
     </label>
   );
 }
@@ -438,3 +438,96 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     </button>
   );
 }
+
+// ─── Style objects ───────────────────────────────────────────────────────────
+
+const s: Record<string, React.CSSProperties> = {
+  wrap: { minHeight: '100%', background: 'var(--bg)', padding: '32px 32px 80px' },
+  inner: { maxWidth: 780, margin: '0 auto' },
+  header: { marginBottom: 28 },
+  h1: {
+    fontSize: 26,
+    fontWeight: 800,
+    color: 'var(--ink-900)',
+    letterSpacing: '-0.02em',
+    marginBottom: 6,
+  },
+  sub: { fontSize: 14, color: 'var(--text-2)' },
+  input: {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 'var(--r-md)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--ink-900)',
+    fontSize: 14,
+    fontFamily: 'var(--f-sans)',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  inputDisabled: {
+    background: 'var(--ink-050)',
+    color: 'var(--text-3)',
+    cursor: 'not-allowed',
+  },
+  textarea: { resize: 'vertical', minHeight: 80 },
+  logoImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    objectFit: 'cover',
+    border: '1px solid var(--border)',
+  },
+  logoPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    background: 'var(--ink-100)',
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 22,
+    border: '1px solid var(--border)',
+  },
+  resetDesc: { fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 },
+  saveBar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: 28,
+    paddingTop: 20,
+    borderTop: '1px solid var(--border)',
+  },
+};
+
+const sect: Record<string, React.CSSProperties> = {
+  wrap: {
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--r-lg)',
+    padding: 24,
+    marginBottom: 20,
+    boxShadow: 'var(--shadow-1)',
+  },
+  head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 },
+  num: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: 'var(--text-3)',
+    fontVariantNumeric: 'tabular-nums',
+    padding: '3px 8px',
+    background: 'var(--ink-050)',
+    borderRadius: 'var(--r-sm)',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: 800,
+    color: 'var(--ink-900)',
+    letterSpacing: '-0.01em',
+  },
+  body: { display: 'flex', flexDirection: 'column', gap: 14 },
+};
+
+const row: Record<string, React.CSSProperties> = {
+  wrap: { display: 'grid', gridTemplateColumns: '160px 1fr', alignItems: 'center', gap: 16 },
+  label: { fontSize: 13, fontWeight: 600, color: 'var(--text-2)' },
+  field: {},
+};

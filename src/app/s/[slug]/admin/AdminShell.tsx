@@ -2,13 +2,18 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useStore } from '../StoreProvider';
 import type { StoreRole } from '@/lib/types/store';
 
 /** @deprecated Use StoreRole from \@/lib/types/store instead */
 export type AdminRole = StoreRole;
+
+const AdminRoleContext = createContext<StoreRole>('kitchen');
+export function useAdminRole(): StoreRole {
+  return useContext(AdminRoleContext);
+}
 
 export function useAdminStoreName(): string {
   return useStore().name;
@@ -103,11 +108,11 @@ export default function AdminShell({
       items: [
         { icon: '▤', label: '주방', href: `/s/${store.slug}/kitchen`, external: true },
         { icon: '☐', label: '손님 화면', href: `/s/${store.slug}/order`, external: true },
-        { icon: '⚙', label: '설정', href: `/s/${store.slug}/admin/settings` },
+        ...(role !== 'kitchen' ? [{ icon: '⚙', label: '설정', href: `/s/${store.slug}/admin/settings` }] : []),
         { icon: '⌂', label: '내 가게 목록', href: '/dashboard' },
       ],
     },
-  ], [menuCount, paymentPendingCount, store.slug]);
+  ], [menuCount, paymentPendingCount, role, store.slug]);
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 1024px), (orientation: portrait)');
@@ -122,6 +127,7 @@ export default function AdminShell({
   };
 
   return (
+    <AdminRoleContext.Provider value={role}>
     <div style={styles.frame}>
       <div style={{ ...styles.grid, gridTemplateColumns: collapsed ? '72px 1fr' : '220px 1fr' }}>
         {/* Sidebar */}
@@ -271,6 +277,7 @@ export default function AdminShell({
         </div>
       )}
     </div>
+    </AdminRoleContext.Provider>
   );
 }
 
