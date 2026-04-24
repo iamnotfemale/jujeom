@@ -219,11 +219,40 @@ export default function LandingPage() {
         .vis-toss .amt small { display: block; font-size: 10px; color: rgba(58,42,0,.55); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px }
 
         /* KDS visual */
-        .vis-kds { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 10px; width: 100%; height: 100% }
-        .vis-kds .ki { background: #222942; border-radius: 8px; border-left: 3px solid var(--mint); padding: 6px 7px; font-size: 8px; color: #B7BCCB; display: flex; flex-direction: column; gap: 2px }
-        .vis-kds .ki b { font-size: 10px; color: #fff; letter-spacing: -0.01em }
-        .vis-kds .ki.warn { border-left-color: var(--coral); background: #2c1c28 }
-        .vis-kds .ki.warn b { color: var(--coral) }
+        .vis-kds { display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; border-radius: 12px }
+        .kds-bar { background: var(--ink-900); padding: 5px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0 }
+        .kds-bar-l { display: flex; align-items: center; gap: 5px }
+        .kds-bar-logo { width: 16px; height: 16px; border-radius: 4px; background: var(--neon); color: var(--neon-ink); font-size: 7px; font-weight: 800; display: grid; place-items: center; flex: none }
+        .kds-bar-title { font-size: 8px; font-weight: 700; color: #fff }
+        .kds-bar-stats { display: flex; gap: 8px }
+        .kds-bar-stat { display: flex; flex-direction: column; align-items: center; gap: 1px }
+        .kds-bar-stat em { font-style: normal; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums }
+        .kds-bar-stat span { font-size: 7px; color: #8A91A5; font-weight: 600 }
+        .kds-chips { background: #161B30; padding: 4px 8px; display: flex; gap: 4px; flex-shrink: 0; border-bottom: 1px solid #222942 }
+        .kds-chip { font-size: 7px; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: #222942; color: #8A91A5; white-space: nowrap }
+        .kds-chip.on { background: var(--neon); color: var(--neon-ink) }
+        .kds-tickets { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; padding: 7px; flex: 1; overflow: hidden; background: #0E1220 }
+        .kds-tk { background: #fff; border: 1.5px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden }
+        .kds-tk.amber { border-color: var(--amber) }
+        .kds-tk.crim { border-color: var(--crim) }
+        .kds-ribbon { font-size: 6px; font-weight: 800; text-align: center; padding: 3px 4px; color: #fff; letter-spacing: .05em; text-transform: uppercase; flex-shrink: 0 }
+        .kds-ribbon.new { background: var(--coral) }
+        .kds-ribbon.cook { background: var(--amber) }
+        .kds-ribbon.done { background: var(--mint); color: var(--ink-900) }
+        .kds-th { padding: 5px 6px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); flex-shrink: 0 }
+        .kds-tbl { width: 20px; height: 20px; border-radius: 4px; background: var(--ink-900); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; flex: none }
+        .kds-ord { font-size: 7px; font-weight: 700; color: var(--ink-400) }
+        .kds-timer { margin-left: auto; font-size: 9px; font-weight: 800; font-variant-numeric: tabular-nums }
+        .kds-timer.ok { color: var(--mint) }
+        .kds-timer.w { color: var(--amber) }
+        .kds-timer.d { color: var(--crim) }
+        .kds-items { padding: 5px 6px; display: flex; flex-direction: column; gap: 3px; flex: 1 }
+        .kds-item { font-size: 7.5px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 3px }
+        .kds-qty { width: 14px; height: 14px; border-radius: 3px; background: var(--surface-2); font-size: 8px; font-weight: 800; display: grid; place-items: center; flex: none; color: var(--ink-900) }
+        .kds-btn { margin: 4px; padding: 4px; border-radius: 5px; font-size: 7px; font-weight: 800; text-align: center; color: #fff; flex-shrink: 0 }
+        .kds-btn.coral { background: var(--coral) }
+        .kds-btn.amber { background: var(--amber) }
+        .kds-btn.mint { background: var(--mint); color: var(--ink-900) }
 
         /* ── How it works ───────────────────────────────── */
         .how { padding: 110px 0 }
@@ -280,23 +309,25 @@ export default function LandingPage() {
 
         .booths { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px }
         .booth {
-          background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 18px;
-          display: flex; flex-direction: column; gap: 10px; min-height: 148px;
+          background: #fff; border: 1px solid var(--border); border-radius: 18px;
+          display: flex; flex-direction: column; overflow: hidden; min-height: 160px;
         }
+        .booth-body { padding: 18px; flex: 1; display: flex; flex-direction: column; gap: 10px }
         .booth .bh { display: flex; justify-content: space-between; align-items: flex-start }
         .booth .bh .nm { font-size: 14px; font-weight: 800; letter-spacing: -0.02em }
-        .booth .bh .nm small { display: block; font-size: 11px; color: var(--text-2); font-weight: 600; margin-top: 1px }
-        .booth .rev { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.02em }
-        .booth .rev small { display: block; font-size: 10px; font-weight: 700; color: var(--mint); text-align: right }
-        .booth .bm { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-2); font-weight: 600 }
+        .booth-slug { display: block; font-size: 11px; color: var(--text-2); font-weight: 500; margin-top: 2px; font-family: 'SF Mono', ui-monospace, monospace }
+        .booth-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 99px; flex: none; white-space: nowrap }
+        .badge-owner { background: var(--ink-900); color: var(--neon) }
+        .badge-manager { background: color-mix(in oklab, var(--mint) 18%, white); color: #0a5c3d; border: 1px solid color-mix(in oklab, var(--mint) 30%, white) }
+        .badge-kitchen { background: color-mix(in oklab, var(--amber) 22%, white); color: #7a4800; border: 1px solid color-mix(in oklab, var(--amber) 35%, white) }
+        .booth .bm { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-2); font-weight: 600; margin-top: auto }
         .booth .bm .mini { width: 6px; height: 6px; border-radius: 50%; background: var(--mint) }
         .booth .bm .mini.w { background: var(--coral) }
-        .bbar { height: 4px; border-radius: 99px; background: var(--ink-100); overflow: hidden; margin-top: auto }
-        .bbar i { display: block; height: 100%; background: var(--ink-900); border-radius: 99px }
+        .booth-ft { border-top: 1px solid var(--border); padding: 8px 14px; font-size: 12px; font-weight: 700; color: var(--text-2); text-align: right }
         .booth.hi { background: var(--ink-900); color: #fff; border-color: var(--ink-900) }
-        .booth.hi .bh .nm small, .booth.hi .bm { color: #B7BCCB }
-        .booth.hi .bbar { background: #222942 }
-        .booth.hi .bbar i { background: var(--neon) }
+        .booth.hi .booth-slug, .booth.hi .bm { color: #8A91A5 }
+        .booth.hi .badge-owner { background: var(--neon); color: var(--neon-ink) }
+        .booth.hi .booth-ft { border-top-color: #222942; color: #8A91A5 }
 
         /* ── FAQ / Contact ──────────────────────────────── */
         .faq { padding: 110px 0 }
@@ -532,11 +563,66 @@ export default function LandingPage() {
             <div className="fcard">
               <div className="fnum">03 · KITCHEN</div>
               <h3 className="lp-h3">주방 태블릿<br />실시간 티켓</h3>
-              <div className="fvis">
+              <div className="fvis" style={{ padding: 0 }}>
                 <div className="vis-kds">
-                  <div className="ki"><b>3번 · #048</b>닭발 2 · 파전 1<span style={{ color: '#8A91A5' }}>방금</span></div>
-                  <div className="ki"><b>7번 · #047</b>먹태 1 · 소주 2<span style={{ color: '#8A91A5' }}>3분</span></div>
-                  <div className="ki warn"><b>2번 · #045</b>파전 1 · 생맥 3<span style={{ color: '#FF5A44' }}>8분 지연</span></div>
+                  <div className="kds-bar">
+                    <div className="kds-bar-l">
+                      <span className="kds-bar-logo">컴</span>
+                      <span className="kds-bar-title">주방 KDS</span>
+                    </div>
+                    <div className="kds-bar-stats">
+                      <div className="kds-bar-stat"><em style={{ color: 'var(--coral)' }}>3</em><span>미처리</span></div>
+                      <div className="kds-bar-stat"><em style={{ color: 'var(--amber)' }}>2</em><span>조리 중</span></div>
+                      <div className="kds-bar-stat"><em style={{ color: 'var(--mint)' }}>1</em><span>완료 대기</span></div>
+                    </div>
+                  </div>
+                  <div className="kds-chips">
+                    <span className="kds-chip on">전체</span>
+                    <span className="kds-chip">신규</span>
+                    <span className="kds-chip">조리 중</span>
+                    <span className="kds-chip">완료 대기</span>
+                  </div>
+                  <div className="kds-tickets">
+                    <div className="kds-tk">
+                      <div className="kds-ribbon new">신규</div>
+                      <div className="kds-th">
+                        <span className="kds-tbl">3</span>
+                        <span className="kds-ord">#048</span>
+                        <span className="kds-timer ok">2:14</span>
+                      </div>
+                      <div className="kds-items">
+                        <div className="kds-item"><span className="kds-qty">2</span>닭발</div>
+                        <div className="kds-item"><span className="kds-qty">1</span>파전</div>
+                      </div>
+                      <div className="kds-btn coral">조리 시작</div>
+                    </div>
+                    <div className="kds-tk amber">
+                      <div className="kds-ribbon cook">조리 중</div>
+                      <div className="kds-th">
+                        <span className="kds-tbl">7</span>
+                        <span className="kds-ord">#047</span>
+                        <span className="kds-timer w">7:32</span>
+                      </div>
+                      <div className="kds-items">
+                        <div className="kds-item"><span className="kds-qty">1</span>먹태</div>
+                        <div className="kds-item"><span className="kds-qty">2</span>소주</div>
+                      </div>
+                      <div className="kds-btn amber">조리 완료</div>
+                    </div>
+                    <div className="kds-tk crim">
+                      <div className="kds-ribbon done">완료 대기</div>
+                      <div className="kds-th">
+                        <span className="kds-tbl">2</span>
+                        <span className="kds-ord">#045</span>
+                        <span className="kds-timer d">11:08</span>
+                      </div>
+                      <div className="kds-items">
+                        <div className="kds-item"><span className="kds-qty">1</span>파전</div>
+                        <div className="kds-item"><span className="kds-qty">3</span>생맥</div>
+                      </div>
+                      <div className="kds-btn mint">서빙 완료</div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <p className="fbody">주문 접수 → 조리 중 → 완성까지 탭 한 번으로 상태 전환. 오래된 주문은 카드 테두리가 붉게 변해 바로 눈에 들어와요.</p>
@@ -634,36 +720,54 @@ export default function LandingPage() {
 
           <div className="booths">
             <div className="booth hi">
-              <div className="bh">
-                <div className="nm">컴공 주점<small>1층 북관</small></div>
-                <div className="rev">1.8M<small>+18%</small></div>
+              <div className="booth-body">
+                <div className="bh">
+                  <div>
+                    <div className="nm">컴공 주점</div>
+                    <span className="booth-slug">/s/compsci-pub</span>
+                  </div>
+                  <span className="booth-badge badge-owner">소유자</span>
+                </div>
+                <div className="bm"><span className="mini"></span>영업 중 · 테이블 서빙</div>
               </div>
-              <div className="bm"><span className="mini"></span>영업 중 · 테이블 14</div>
-              <div className="bbar"><i style={{ width: '74%' }}></i></div>
+              <div className="booth-ft">⚙ 설정</div>
             </div>
             <div className="booth">
-              <div className="bh">
-                <div className="nm">디자인 라운지<small>2층 복도</small></div>
-                <div className="rev">920K<small>+6%</small></div>
+              <div className="booth-body">
+                <div className="bh">
+                  <div>
+                    <div className="nm">디자인 라운지</div>
+                    <span className="booth-slug">/s/design-lounge</span>
+                  </div>
+                  <span className="booth-badge badge-manager">매니저</span>
+                </div>
+                <div className="bm"><span className="mini"></span>영업 중 · 픽업</div>
               </div>
-              <div className="bm"><span className="mini"></span>영업 중 · 테이블 8</div>
-              <div className="bbar"><i style={{ width: '52%' }}></i></div>
             </div>
             <div className="booth">
-              <div className="bh">
-                <div className="nm">경영 BAR<small>중앙광장</small></div>
-                <div className="rev">1.3M<small>+11%</small></div>
+              <div className="booth-body">
+                <div className="bh">
+                  <div>
+                    <div className="nm">경영 BAR</div>
+                    <span className="booth-slug">/s/mgmt-bar</span>
+                  </div>
+                  <span className="booth-badge badge-owner">소유자</span>
+                </div>
+                <div className="bm"><span className="mini" style={{ background: 'var(--ink-300)' }}></span>영업 종료</div>
               </div>
-              <div className="bm"><span className="mini w"></span>미확인 3건 대기</div>
-              <div className="bbar"><i style={{ width: '61%' }}></i></div>
+              <div className="booth-ft">⚙ 설정</div>
             </div>
             <div className="booth">
-              <div className="bh">
-                <div className="nm">사학 주막<small>도서관 앞</small></div>
-                <div className="rev">640K<small>+3%</small></div>
+              <div className="booth-body">
+                <div className="bh">
+                  <div>
+                    <div className="nm">사학 주막</div>
+                    <span className="booth-slug">/s/history-pub</span>
+                  </div>
+                  <span className="booth-badge badge-kitchen">주방</span>
+                </div>
+                <div className="bm"><span className="mini"></span>영업 중 · 테이블 서빙</div>
               </div>
-              <div className="bm"><span className="mini"></span>영업 중 · 테이블 6</div>
-              <div className="bbar"><i style={{ width: '38%' }}></i></div>
             </div>
           </div>
         </div>
@@ -683,15 +787,15 @@ export default function LandingPage() {
                 <div className="fcr kk">
                   <span className="ic">@</span>
                   <div>
-                    Instagram @gong.zip.hab
-                    <small>ㅠ.ㅠ</small>
+                    <a href="https://www.instagram.com/gong.zip.hab/">Instagram</a>
+                    <small>Instagram</small>
                   </div>
                 </div>
                 <div className="fcr">
                   <span className="ic">@</span>
                   <div>
                     <a href="mailto:yeoziphab@gmail.com">yeoziphab@gmail.com</a>
-                    <small>상세 문의·대량 운영 상담</small>
+                    <small>메일로도 괜찮아요</small>
                   </div>
                 </div>
               </div>
@@ -775,13 +879,13 @@ export default function LandingPage() {
             </div>
             <div className="ft-col">
               <h4>문의</h4>
-              <a href="mailto:kucseai@gmail.com">kucseai@gmail.com</a>
-              <a href="#">Instagram</a>
+              <a href="mailto:yeoziphab@gmail.com">yeoziphab@gmail.com</a>
+              <a href="https://www.instagram.com/gong.zip.hab/">Instagram</a>
               <a href="#">GitHub</a>
             </div>
           </div>
           <div className="ft-bot">
-            <div>© 2026 차림 · 학생 사이드 프로젝트</div>
+            <div>© 2026 차림 · 대학생들의 주점 운영</div>
           </div>
         </div>
       </footer>
