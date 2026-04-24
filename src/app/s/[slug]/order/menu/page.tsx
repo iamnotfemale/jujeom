@@ -884,9 +884,8 @@ function MenuContent() {
                 overflow: 'hidden',
               }}
             >
-              {/* handle / toggle */}
+              {/* drag handle */}
               <div
-                onClick={() => setSheetExpanded((v) => !v)}
                 onTouchStart={onHandleTouchStart}
                 onTouchMove={onHandleTouchMove}
                 onTouchEnd={onHandleTouchEnd}
@@ -894,7 +893,7 @@ function MenuContent() {
                   padding: '10px 0 6px',
                   display: 'flex',
                   justifyContent: 'center',
-                  cursor: 'pointer',
+                  cursor: 'grab',
                   touchAction: 'none',
                 }}
               >
@@ -1095,6 +1094,9 @@ function MenuContent() {
 
               {/* sticky CTA */}
               <div
+                onTouchStart={onHandleTouchStart}
+                onTouchMove={onHandleTouchMove}
+                onTouchEnd={onHandleTouchEnd}
                 style={{
                   padding: '10px 14px 14px',
                   paddingBottom:
@@ -1107,15 +1109,14 @@ function MenuContent() {
                     ? '1px solid var(--ink-700)'
                     : 'none',
                   background: 'var(--ink-900)',
+                  touchAction: 'none',
                 }}
               >
                 <div
-                  onClick={() => setSheetExpanded((v) => !v)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    cursor: 'pointer',
                     flex: 1,
                     minWidth: 0,
                   }}
@@ -1156,7 +1157,7 @@ function MenuContent() {
                       marginLeft: 4,
                     }}
                   >
-                    {sheetExpanded ? '접기 ▼' : '펼쳐보기 ▲'}
+                    {sheetExpanded ? '위로 드래그해서 접기' : '위로 드래그해서 펼치기'}
                   </span>
                 </div>
                 <button

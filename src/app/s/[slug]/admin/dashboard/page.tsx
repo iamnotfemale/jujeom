@@ -177,7 +177,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="px-7 pt-6 pb-10 max-w-[1060px]">
+      <div className="px-4 md:px-7 pt-6 pb-10">
         <div className="flex items-start justify-between mb-5">
           <div>
             <h1 className="text-[22px] font-extrabold m-0 leading-[1.3]">대시보드</h1>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-4 md:px-7 pt-6 pb-10 max-w-[1060px]">
+    <div className="px-4 md:px-7 pt-6 pb-10">
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Two column layout */}
-      <div className="grid gap-4 items-start grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1.4fr_1fr] lg:items-stretch">
         {/* Left: Tables grid */}
         <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
           <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
@@ -276,11 +276,11 @@ export default function DashboardPage() {
               {tables.filter((t) => t.status !== 'empty').length}/{tables.length} 이용 중
             </span>
           </div>
-          <div className="grid gap-2 p-[14px]" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))' }}>
+          <div className="grid gap-3 p-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))' }}>
             {tables.map((table) => (
               <div
                 key={table.id}
-                className="aspect-square rounded-[var(--r-md)] flex flex-col items-center justify-center gap-1 transition-[background_.15s_ease]"
+                className="aspect-square rounded-[var(--r-lg)] flex flex-col items-center justify-center gap-[6px] transition-[background_.15s_ease]"
                 style={
                   table.status === 'occupied'
                     ? { background: 'var(--ink-900)', color: '#fff' }
@@ -289,11 +289,11 @@ export default function DashboardPage() {
                     : { border: '2px dashed var(--ink-200)', background: 'transparent' }
                 }
               >
-                <div className="text-xl font-extrabold leading-none">{table.number}</div>
-                <div className="text-[10px] font-medium opacity-70 leading-[1.3]">
+                <div className="text-2xl font-extrabold leading-none">{table.number}</div>
+                <div className="text-xs font-semibold opacity-75 leading-[1.3] text-center px-1">
                   {table.status === 'payment_pending' && (
                     <span
-                      className="inline-block w-[6px] h-[6px] rounded-full mr-1 align-middle"
+                      className="inline-block w-[7px] h-[7px] rounded-full mr-1 align-middle"
                       style={{ background: 'var(--amber)', animation: 'ping 2s infinite' }}
                     />
                   )}
@@ -301,22 +301,21 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            {/* Show placeholder cells if fewer than 15 tables */}
             {tables.length < 15 && Array.from({ length: Math.max(0, 15 - tables.length) }).map((_, i) => (
               <div
                 key={`empty-${i}`}
-                className="aspect-square rounded-[var(--r-md)] flex flex-col items-center justify-center gap-1 transition-[background_.15s_ease]"
+                className="aspect-square rounded-[var(--r-lg)] flex flex-col items-center justify-center gap-[6px]"
                 style={{ border: '2px dashed var(--ink-200)', background: 'transparent' }}
               >
-                <div className="text-xl font-extrabold leading-none">-</div>
-                <div className="text-[10px] font-medium opacity-70 leading-[1.3]">미사용</div>
+                <div className="text-2xl font-extrabold leading-none opacity-30">-</div>
+                <div className="text-xs font-medium opacity-30 leading-[1.3]">미사용</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Right column */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 h-full">
           {/* Sales donut */}
           <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
             <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
@@ -365,14 +364,14 @@ export default function DashboardPage() {
           </div>
 
           {/* Recent orders */}
-          <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
+          <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden flex flex-col flex-1">
             <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
               <h2 className="text-[15px] font-bold m-0">최근 주문</h2>
               <Link href={`/s/${store.slug}/admin/payments`} className="text-xs text-[var(--ink-400)] no-underline">
                 전체 보기 &rarr;
               </Link>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1">
               {recentOrders.length === 0 && (
                 <div className="p-5 text-center text-[var(--ink-400)] text-[13px]">
                   오늘 주문이 없어요

@@ -180,6 +180,7 @@ export default function MenuManagementPage() {
 
     setModalOpen(false);
     fetchMenus();
+    showToast(editingId ? '메뉴가 수정됐습니다.' : '메뉴가 추가됐습니다.', 'success');
   };
 
   const deleteMenu = async (id: number) => {

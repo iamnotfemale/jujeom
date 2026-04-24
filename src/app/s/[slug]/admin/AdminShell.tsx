@@ -96,22 +96,22 @@ export default function AdminShell({
     {
       label: '운영',
       items: [
-        { icon: '◆', label: '대시보드', href: `/s/${store.slug}/admin/dashboard` },
-        { icon: '▦', label: '테이블 관리', href: `/s/${store.slug}/admin/tables` },
-        { icon: '☰', label: '메뉴 관리', href: `/s/${store.slug}/admin/menu`, count: menuCount },
-        { icon: '₩', label: '결제 내역', href: `/s/${store.slug}/admin/payments`, count: paymentPendingCount },
+        { icon: '📊', label: '대시보드', href: `/s/${store.slug}/admin/dashboard` },
+        { icon: '🪑', label: '테이블 관리', href: `/s/${store.slug}/admin/tables` },
+        { icon: '🍽️', label: '메뉴 관리', href: `/s/${store.slug}/admin/menu`, count: menuCount },
+        { icon: '💳', label: '결제 내역', href: `/s/${store.slug}/admin/payments`, count: paymentPendingCount },
         ...(['owner', 'manager'].includes(role)
-          ? [{ icon: '✦', label: '팀 관리', href: `/s/${store.slug}/admin/members` }]
+          ? [{ icon: '👥', label: '팀 관리', href: `/s/${store.slug}/admin/members` }]
           : []),
       ],
     },
     {
       label: '참고',
       items: [
-        { icon: '▤', label: '주방', href: `/s/${store.slug}/kitchen`, external: true },
-        { icon: '☐', label: '손님 화면', href: `/s/${store.slug}/order`, external: true },
-        ...(role !== 'kitchen' ? [{ icon: '⚙', label: '설정', href: `/s/${store.slug}/admin/settings` }] : []),
-        { icon: '⌂', label: '내 가게 목록', href: '/dashboard' },
+        { icon: '🧑‍🍳', label: '주방', href: `/s/${store.slug}/kitchen`, external: true },
+        { icon: '📱', label: '손님 화면', href: `/s/${store.slug}/order`, external: true },
+        ...(role !== 'kitchen' ? [{ icon: '⚙️', label: '설정', href: `/s/${store.slug}/admin/settings` }] : []),
+        { icon: '🏠', label: '내 가게 목록', href: '/dashboard' },
       ],
     },
   ], [menuCount, paymentPendingCount, role, store.slug]);
@@ -166,7 +166,7 @@ export default function AdminShell({
               };
               const linkContent = (
                 <>
-                  <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
+                  <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
                   {showLabel && (
                     <>
                       <span style={{ flex: 1 }}>{item.label}</span>
@@ -268,8 +268,35 @@ export default function AdminShell({
   return (
     <AdminRoleContext.Provider value={role}>
     <div style={styles.frame}>
-      <div style={{ ...styles.grid, gridTemplateColumns: collapsed ? '72px 1fr' : '220px 1fr' }}>
+      <div style={{ ...styles.grid, gridTemplateColumns: collapsed ? '72px 1fr' : '220px 1fr', position: 'relative' }}>
         {sidebarInner}
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+          style={{
+            position: 'absolute',
+            left: collapsed ? 58 : 206,
+            top: 22,
+            zIndex: 20,
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            border: '2px solid var(--ink-200)',
+            background: '#fff',
+            color: 'var(--ink-600)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            fontWeight: 700,
+            fontFamily: 'var(--f-sans)',
+            boxShadow: '0 2px 8px rgba(14,18,32,.2)',
+            transition: 'left .15s ease',
+          }}
+        >
+          {collapsed ? '›' : '‹'}
+        </button>
         <main style={styles.main}>{children}</main>
       </div>
       {staffCallModal}
@@ -281,18 +308,13 @@ export default function AdminShell({
 const styles: Record<string, React.CSSProperties> = {
   frame: {
     minHeight: '100vh',
-    background: '#E9E7DE',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
+    background: 'var(--surface-2)',
   },
   grid: {
     display: 'grid',
     width: '100%',
-    maxWidth: 1280,
     minHeight: '100vh',
     background: 'var(--paper)',
-    boxShadow: 'var(--shadow-3)',
   },
   sidebar: {
     background: 'var(--ink-900)',

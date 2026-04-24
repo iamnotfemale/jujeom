@@ -7,6 +7,7 @@ import { adminApi } from '@/lib/admin-api';
 import type { Table, TableStatus, TableKind, Order, Payment } from '@/lib/database.types';
 import { useStore } from '../../StoreProvider';
 import { useAdminRole } from '../AdminShell';
+import { useToast } from '@/components/ToastProvider';
 
 /* ── Constants ─────────────────────── */
 const GRID = 40;
@@ -58,11 +59,11 @@ const timeAgo = (iso: string) => {
 export default function TablesPage() {
   const store = useStore();
   const myRole = useAdminRole();
+  const { showToast } = useToast();
   const [tables, setTables] = useState<Table[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
@@ -74,12 +75,6 @@ export default function TablesPage() {
   const selectedTable = tables.find((t) => t.id === selectedId) ?? null;
   const selectedIsTable = selectedTable?.kind === 'table';
   const canEdit = myRole === 'owner' || myRole === 'manager';
-
-  /* ── Toast helper ─────────────────────── */
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2200);
-  }, []);
 
   /* ── Fetch tables ─────────────────────── */
   const fetchTables = useCallback(async () => {
@@ -217,12 +212,12 @@ export default function TablesPage() {
     });
     if (error) {
       console.error('block insert error:', error);
-      showToast(`추가 실패: ${error}`);
+      showToast(`추가 실패: ${error}`, 'error');
       return;
     }
     const inserted = (data?.data ?? null) as Table | null;
     if (!inserted) {
-      showToast('추가 실패: 응답 없음');
+      showToast('추가 실패: 응답 없음', 'error');
       return;
     }
     setTables((prev) => [...prev, inserted]);
@@ -230,7 +225,8 @@ export default function TablesPage() {
     showToast(
       kind === 'table' ? `테이블 ${newNum} 추가됨`
         : kind === 'restroom' ? '화장실 추가됨'
-          : '주방 추가됨'
+          : '주방 추가됨',
+      'success',
     );
   };
 
@@ -248,10 +244,10 @@ export default function TablesPage() {
       body: { items },
     });
     if (error) {
-      showToast(`저장 실패: ${error}`);
+      showToast(`저장 실패: ${error}`, 'error');
       return;
     }
-    showToast('저장됨');
+    showToast('저장됐습니다.', 'success');
   };
 
   /* ── Delete selected block ─────────────────────── */
@@ -264,12 +260,12 @@ export default function TablesPage() {
     });
     if (error) {
       console.error('delete table error:', error);
-      showToast(`삭제 실패: ${error}`);
+      showToast(`삭제 실패: ${error}`, 'error');
       return;
     }
     setTables((prev) => prev.filter((t) => t.id !== tid));
     setSelectedId(null);
-    showToast('삭제됨');
+    showToast('삭제됐습니다.', 'success');
   };
 
   /* ── Delete all blocks ─────────────────────── */
@@ -280,12 +276,12 @@ export default function TablesPage() {
     });
     if (error) {
       console.error('delete all tables error:', error);
-      showToast(`삭제 실패: ${error}`);
+      showToast(`삭제 실패: ${error}`, 'error');
       return;
     }
     setTables([]);
     setSelectedId(null);
-    showToast('전체 삭제됨');
+    showToast('전체 삭제됐습니다.', 'success');
   };
 
   /* ── Update capacity ─────────────────────── */
@@ -390,11 +386,11 @@ export default function TablesPage() {
     });
     setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: newStatus as TableStatus } : t));
     const toastMsg: Record<string, string> = {
-      empty: '빈 테이블로 변경',
-      occupied: '사용 중으로 변경',
-      payment_pending: '입금 대기로 변경',
+      empty: '빈 테이블로 변경됐습니다.',
+      occupied: '사용 중으로 변경됐습니다.',
+      payment_pending: '입금 대기로 변경됐습니다.',
     };
-    showToast(toastMsg[newStatus] ?? '상태 변경 완료');
+    showToast(toastMsg[newStatus] ?? '상태가 변경됐습니다.', 'success');
   };
 
   /* ── QR download ─────────────────────── */
@@ -992,28 +988,6 @@ export default function TablesPage() {
         </div>
       )}
 
-      {/* ── Toast ─────────────────────── */}
-      {toast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 28,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 1100,
-            background: 'var(--ink-900)',
-            color: '#fff',
-            padding: '10px 24px',
-            borderRadius: 'var(--r-pill)',
-            fontSize: 14,
-            fontWeight: 600,
-            boxShadow: 'var(--shadow-3)',
-            animation: 'toastIn .2s ease',
-          }}
-        >
-          {toast}
-        </div>
-      )}
     </div>
   );
 }

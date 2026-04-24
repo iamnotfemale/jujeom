@@ -210,18 +210,25 @@ export default function SettingsPage() {
               {form.logo_url ? (
                 <img src={form.logo_url} alt="로고" style={s.logoImg} />
               ) : (
-                <div style={s.logoPlaceholder}>酒</div>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
                   disabled={logoUploading}
-                  className="btn btn-ghost btn-sm"
+                  style={{ ...s.logoPlaceholder, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--ink-400)', border: '1.5px dashed var(--ink-300)', background: 'var(--ink-050)' }}
                 >
-                  {logoUploading ? '업로드 중…' : '변경'}
+                  {logoUploading ? '...' : '추가하기'}
                 </button>
-                {form.logo_url && (
+              )}
+              {form.logo_url && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploading}
+                    className="btn btn-ghost btn-sm"
+                  >
+                    {logoUploading ? '업로드 중…' : '변경'}
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogoDelete}
@@ -230,8 +237,8 @@ export default function SettingsPage() {
                   >
                     삭제
                   </button>
-                )}
-              </div>
+                </div>
+              )}
               <input
                 ref={logoInputRef}
                 type="file"
@@ -319,9 +326,9 @@ export default function SettingsPage() {
                     style={{
                       padding: '10px 16px',
                       borderRadius: 'var(--r-md)',
-                      border: active ? '2px solid var(--ink-900)' : '1px solid var(--border)',
-                      background: active ? 'var(--neon)' : 'var(--surface)',
-                      color: active ? 'var(--neon-ink)' : 'var(--ink-700)',
+                      border: 'none',
+                      background: active ? 'var(--neon)' : 'var(--ink-100)',
+                      color: active ? 'var(--neon-ink)' : 'var(--ink-600)',
                       cursor: 'pointer',
                       fontWeight: active ? 800 : 600,
                       fontSize: 14,

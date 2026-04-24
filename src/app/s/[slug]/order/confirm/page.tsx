@@ -37,6 +37,13 @@ function OrderConfirmPage() {
   const [copied, setCopied] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+
+  const formatPhone = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  };
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   const storeName = store.name;
@@ -139,6 +146,15 @@ function OrderConfirmPage() {
       showToast('입금자명을 입력해 주세요.', 'warn');
       return;
     }
+    if (!customerPhone.trim()) {
+      showToast('연락처를 입력해 주세요.', 'warn');
+      return;
+    }
+    const phonePattern = /^\d{3}-\d{3,4}-\d{4}$/;
+    if (!phonePattern.test(customerPhone)) {
+      showToast('연락처를 올바른 형식으로 입력해 주세요. (예: 010-1234-5678)', 'warn');
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -215,14 +231,18 @@ function OrderConfirmPage() {
         localStorage.removeItem(cartStorageKey(store.slug, tableNumber));
       } catch { /* ignore */ }
 
-      // Toss 딥링크: bank는 한글 그대로 전달 (encodeURIComponent 금지 — 인코딩 시 은행 인식 실패)
       if (method === 'toss') {
         const bank = normalizeBankName(bankName);
         const cleanAccountNo = accountNo.replace(/\D/g, '');
-        // 한글을 raw로 포함한 URL — window.location.href 할당 시 브라우저가 스킴 핸들러로 전달
-        window.location.href = `supertoss://send?bank=${bank}&accountNo=${cleanAccountNo}&amount=${row.total}`;
-        // 300ms 대기: 딥링크가 앱에 전달된 뒤 상태 페이지로 이동
-        await new Promise((r) => setTimeout(r, 300));
+        const deeplink = `supertoss://send?bank=${bank}&accountNo=${cleanAccountNo}&amount=${row.total}`;
+        // anchor 방식: 브라우저의 자동 퍼센트 인코딩 없이 스킴 핸들러에 그대로 전달
+        const a = document.createElement('a');
+        a.setAttribute('href', deeplink);
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        await new Promise((r) => setTimeout(r, 1500));
       }
 
       // 상태 페이지로 이동
@@ -252,7 +272,7 @@ function OrderConfirmPage() {
       </header>
 
       {/* ── Body ───────────────────────────── */}
-      <main className="flex-1 px-4 pt-4 pb-[160px] flex flex-col gap-4">
+      <main className="flex-1 px-4 pt-4 pb-8 flex flex-col gap-4">
 
         {/* ── Order items card ─────────────── */}
         <section className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] overflow-hidden">
@@ -368,58 +388,59 @@ function OrderConfirmPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[13px] font-semibold text-[var(--text-2)]">연락처 <span className="text-[var(--ink-400)] font-normal">(선택)</span></label>
+            <label className="text-[13px] font-semibold text-[var(--text-2)]">연락처 <span className="text-[var(--crim)]">*</span></label>
             <input
               type="tel"
+              inputMode="numeric"
               value={customerPhone}
-              onChange={e => setCustomerPhone(e.target.value)}
+              onChange={e => setCustomerPhone(formatPhone(e.target.value))}
               placeholder="010-0000-0000"
               className="w-full border border-[var(--border)] rounded-[var(--r-md)] py-[10px] px-3 text-sm font-[var(--f-sans)] text-[var(--text)] bg-[var(--surface-2)] outline-none"
             />
           </div>
         </section>
-      </main>
 
-      {/* ── Payment footer ─────────────────── */}
-      <footer
-        className="fixed bottom-0 left-0 right-0 z-30 bg-[var(--surface)] border-t border-[var(--border)] px-4 pt-3 flex flex-col gap-[10px]"
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-      >
-        {/* toss button */}
-        <button
-          className="btn btn-lg btn-block"
-          disabled={!hydrated || items.length === 0 || submitting || !customerName.trim()}
-          onClick={() => submitOrder('toss')}
-          style={{
-            background: '#0064FF', color: '#fff', gap: 8,
-            opacity: (!hydrated || items.length === 0 || !customerName.trim()) ? 0.4 : 1,
-          }}
+        {/* ── Payment buttons ─────────────── */}
+        <div
+          className="flex flex-col gap-[10px] border-t border-[var(--border)] pt-4"
+          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
         >
-          <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-[6px] bg-white text-[#0064FF] font-extrabold text-sm leading-none">t</span>
-          토스로 결제하기
-        </button>
-
-        {/* transfer button */}
-        <button
-          className="btn btn-ghost btn-block"
-          disabled={!hydrated || items.length === 0 || submitting || !customerName.trim()}
-          onClick={() => setShowTransferModal(true)}
-          style={{ opacity: (!hydrated || items.length === 0 || !customerName.trim()) ? 0.4 : 1 }}
-        >
-          계좌이체로 결제
-        </button>
-
-        {/* account info */}
-        <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--text-3)]">
-          <span>{accountInfo}</span>
+          {/* toss button */}
           <button
-            onClick={copyAccount}
-            className="py-[3px] px-2 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-2)] text-[11px] font-semibold cursor-pointer text-[var(--text-2)] transition-all duration-[150ms] ease"
+            className="btn btn-lg btn-block"
+            disabled={!hydrated || items.length === 0 || submitting || !customerName.trim() || !customerPhone.trim()}
+            onClick={() => submitOrder('toss')}
+            style={{
+              background: '#0064FF', color: '#fff', gap: 8,
+              opacity: (!hydrated || items.length === 0 || !customerName.trim() || !customerPhone.trim()) ? 0.4 : 1,
+            }}
           >
-            {copied ? '복사됨!' : '복사'}
+            <span className="inline-flex items-center justify-center w-[22px] h-[22px] rounded-[6px] bg-white text-[#0064FF] font-extrabold text-sm leading-none">t</span>
+            토스로 결제하기
           </button>
+
+          {/* transfer button */}
+          <button
+            className="btn btn-ghost btn-block"
+            disabled={!hydrated || items.length === 0 || submitting || !customerName.trim() || !customerPhone.trim()}
+            onClick={() => setShowTransferModal(true)}
+            style={{ opacity: (!hydrated || items.length === 0 || !customerName.trim() || !customerPhone.trim()) ? 0.4 : 1 }}
+          >
+            계좌이체로 결제
+          </button>
+
+          {/* account info */}
+          <div className="flex items-center justify-center gap-2 text-[13px] text-[var(--text-3)]">
+            <span>{accountInfo}</span>
+            <button
+              onClick={copyAccount}
+              className="py-[3px] px-2 rounded-[var(--r-sm)] border border-[var(--border)] bg-[var(--surface-2)] text-[11px] font-semibold cursor-pointer text-[var(--text-2)] transition-all duration-[150ms] ease"
+            >
+              {copied ? '복사됨!' : '복사'}
+            </button>
+          </div>
         </div>
-      </footer>
+      </main>
 
       {/* ── Transfer Modal ────────────────── */}
       {showTransferModal && (
