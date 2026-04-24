@@ -41,7 +41,7 @@ function LoginForm() {
       >
         <div className="flex items-center gap-3 mb-4">
           <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">
-            🎆
+            🎉
           </div>
           <div>
             <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">차림</div>

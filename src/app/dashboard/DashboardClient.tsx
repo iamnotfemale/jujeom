@@ -160,7 +160,7 @@ export default function DashboardClient({
         {/* ── 헤더 ── */}
         <header className="flex justify-between items-center mb-8 gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">🎆</div>
+            <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] flex items-center justify-center text-[22px]">🎉</div>
             <div>
               <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 주점</div>
               <div className="text-xs text-[var(--text-3)] mt-[2px]">{userEmail}</div>
@@ -378,7 +378,7 @@ function StoreBoothCard({
   return (
     <div
       className="rounded-[18px] border flex flex-col overflow-hidden shadow-[var(--shadow-1)]"
-      style={{ background: '#fff', borderColor: 'var(--border)', minHeight: 148 }}
+      style={{ background: '#fff', borderColor: 'var(--border)', minHeight: 180 }}
     >
       <Link
         href={`/s/${store.slug}/admin/dashboard`}
@@ -404,13 +404,6 @@ function StoreBoothCard({
           {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
         </div>
 
-        {/* 프로그레스 바 (영업 중 강조) */}
-        <div className="h-[4px] rounded-full overflow-hidden mt-auto" style={{ background: 'var(--ink-100)' }}>
-          <div
-            className="h-full rounded-full transition-[width] duration-500"
-            style={{ width: isOpen ? '72%' : '18%', background: 'var(--ink-900)' }}
-          />
-        </div>
       </Link>
 
       {/* 설정 버튼 (소유자만) */}
