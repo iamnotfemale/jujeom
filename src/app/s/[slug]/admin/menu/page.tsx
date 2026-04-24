@@ -8,6 +8,7 @@ import type { Menu } from '@/lib/database.types';
 import { useConfirm } from '@/components/ConfirmProvider';
 import { useStore } from '../../StoreProvider';
 import { formatPrice } from '@/lib/formatters';
+import { useAdminRole } from '../AdminShell';
 
 /* ── Constants ──────────────────────────────────── */
 const CATEGORIES = ['전체', '안주', '주류', '음료', '기타'] as const;
@@ -61,6 +62,7 @@ function stockStatus(stock: number, max: number) {
 /* ── Component ──────────────────────────────────── */
 export default function MenuManagementPage() {
   const store = useStore();
+  const myRole = useAdminRole();
   const { confirm: showConfirm } = useConfirm();
   const [menus, setMenus] = useState<Menu[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,6 @@ export default function MenuManagementPage() {
   const [catEdits, setCatEdits] = useState<{ original: string; name: string; isNew: boolean }[]>([]);
   const [catSaving, setCatSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [myRole, setMyRole] = useState<'owner' | 'manager' | 'kitchen' | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,20 +93,6 @@ export default function MenuManagementPage() {
   useEffect(() => {
     fetchMenus();
   }, [fetchMenus]);
-
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from('store_members')
-        .select('role')
-        .eq('store_id', store.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setMyRole((data as { role: 'owner' | 'manager' | 'kitchen' } | null)?.role ?? null);
-    })();
-  }, [store.id]);
 
   const canEdit = myRole === 'owner' || myRole === 'manager';
 

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { adminApi } from '@/lib/admin-api';
 import type { Table, TableStatus, TableKind, Order, Payment } from '@/lib/database.types';
 import { useStore } from '../../StoreProvider';
+import { useAdminRole } from '../AdminShell';
 
 /* ── Constants ─────────────────────── */
 const GRID = 40;
@@ -56,13 +57,13 @@ const timeAgo = (iso: string) => {
 /* ── Component ─────────────────────── */
 export default function TablesPage() {
   const store = useStore();
+  const myRole = useAdminRole();
   const [tables, setTables] = useState<Table[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
-  const [myRole, setMyRole] = useState<'owner' | 'manager' | 'kitchen' | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
   const [tableStats, setTableStats] = useState<Record<number, { earliest: string; total: number }>>({});
@@ -79,21 +80,6 @@ export default function TablesPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   }, []);
-
-  /* ── Fetch current member role ─────────────────────── */
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from('store_members')
-        .select('role')
-        .eq('store_id', store.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setMyRole((data as { role: 'owner' | 'manager' | 'kitchen' } | null)?.role ?? null);
-    })();
-  }, [store.id]);
 
   /* ── Fetch tables ─────────────────────── */
   const fetchTables = useCallback(async () => {
