@@ -4,7 +4,6 @@ export interface Store {
   id: string;
   slug: string;
   name: string;
-  owner_id: string;
   is_open: boolean;
   is_paused: boolean;
   serving_mode: 'pickup' | 'table';

@@ -25,20 +25,29 @@ export async function POST(
   const storeId = check.store.id;
 
   if (type === 'payments') {
-    await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
+    const { error: e1 } = await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
+    if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
+    const { error: e2 } = await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
+    if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
     await supabaseAdmin.from('tables').update({ status: 'empty' }).eq('store_id', storeId);
   } else if (type === 'tables') {
-    await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
+    const { error: e1 } = await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
+    if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
+    const { error: e2 } = await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
+    if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+    const { error: e3 } = await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
+    if (e3) return NextResponse.json({ error: e3.message }, { status: 500 });
   } else if (type === 'all') {
-    await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
-    await supabaseAdmin.from('menus').delete().eq('store_id', storeId);
+    const { error: e1 } = await supabaseAdmin.from('payments').delete().eq('store_id', storeId);
+    if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
+    const { error: e2 } = await supabaseAdmin.from('orders').delete().eq('store_id', storeId);
+    if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+    const { error: e3 } = await supabaseAdmin.from('tables').delete().eq('store_id', storeId);
+    if (e3) return NextResponse.json({ error: e3.message }, { status: 500 });
+    const { error: e4 } = await supabaseAdmin.from('menus').delete().eq('store_id', storeId);
+    if (e4) return NextResponse.json({ error: e4.message }, { status: 500 });
   }
 
-  await writeAuditLog('reset', { type, store_id: storeId }, clientIp(req));
+  await writeAuditLog('reset', { type, store_id: storeId }, clientIp(req), check.user.id);
   return NextResponse.json({ ok: true });
 }

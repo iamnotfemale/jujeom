@@ -39,6 +39,7 @@ export async function POST(
     'payment.status',
     { orderId, newStatus, tableId: tableId ?? null },
     clientIp(req),
+    check.user.id,
   );
   return NextResponse.json({ ok: true });
 }

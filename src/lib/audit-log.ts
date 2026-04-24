@@ -5,10 +5,11 @@ export async function writeAuditLog(
   action: string,
   metadata: Record<string, unknown> = {},
   ip: string = 'unknown',
+  actorId: string = 'system',
 ) {
   try {
     await supabaseAdmin.from('audit_log').insert({
-      actor: 'admin',
+      actor: actorId,
       action,
       metadata: { ...metadata, ip },
     });

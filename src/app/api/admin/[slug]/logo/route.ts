@@ -56,7 +56,7 @@ export async function POST(
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 
-  await writeAuditLog('logo.upload', { store_id: check.store.id }, clientIp(req));
+  await writeAuditLog('logo.upload', { store_id: check.store.id }, clientIp(req), check.user.id);
   return NextResponse.json({ logo_url: publicUrl });
 }
 
@@ -83,6 +83,6 @@ export async function DELETE(
     .update({ logo_url: null })
     .eq('id', check.store.id);
 
-  await writeAuditLog('logo.delete', { store_id: check.store.id }, clientIp(req));
+  await writeAuditLog('logo.delete', { store_id: check.store.id }, clientIp(req), check.user.id);
   return NextResponse.json({ ok: true });
 }

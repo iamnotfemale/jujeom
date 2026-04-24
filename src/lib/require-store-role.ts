@@ -83,7 +83,12 @@ function meetsMinRole(actual: StoreRole, min: StoreRole): boolean {
 export async function getStoreBySlug(slug: string): Promise<StoreContext | null> {
   const { data } = await supabaseAdmin
     .from('stores')
-    .select('*')
+    .select(
+      'id, slug, name, is_open, is_paused, serving_mode, ' +
+      'bank_name, account_number, account_holder, toss_qr_url, ' +
+      'closed_message, welcome_text, welcome_highlight, notice, ' +
+      'auto_lock_kds, logo_url',
+    )
     .eq('slug', slug)
     .maybeSingle();
   return (data as StoreContext | null) ?? null;

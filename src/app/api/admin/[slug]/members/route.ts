@@ -56,16 +56,20 @@ export async function POST(
     return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
   }
 
-  // 이메일로 유저 찾기 (listUsers 페이지 순회)
-  const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-    page: 1,
-    perPage: 1000,
-  });
-  if (listError) return NextResponse.json({ error: listError.message }, { status: 500 });
-
-  const targetUser = listData?.users?.find(
-    (u) => u.email?.toLowerCase() === email.trim().toLowerCase(),
-  );
+  // 이메일로 유저 찾기 — 전체 페이지를 순회해 사용자 수 제한 없이 검색
+  const needle = email.trim().toLowerCase();
+  let targetUser: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.getUserById>>['data']['user'] | undefined;
+  const PER_PAGE = 1000;
+  for (let page = 1; ; page++) {
+    const { data: listData, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      page,
+      perPage: PER_PAGE,
+    });
+    if (listError) return NextResponse.json({ error: listError.message }, { status: 500 });
+    const users = listData?.users ?? [];
+    targetUser = users.find((u) => u.email?.toLowerCase() === needle);
+    if (targetUser || users.length < PER_PAGE) break;
+  }
   if (!targetUser) {
     return NextResponse.json({ error: 'user_not_found' }, { status: 404 });
   }
