@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  if (!checkRateLimit(`signup:${ip}`, 5, 60_000)) {
+    return NextResponse.json({ error: '요청이 너무 많습니다. 1분 후 다시 시도해 주세요.' }, { status: 429 });
+  }
+
   const { email, password } = await req.json();
 
   const cookieBuffer: Parameters<ReturnType<typeof NextResponse.json>['cookies']['set']>[] = [];
