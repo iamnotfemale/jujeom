@@ -140,8 +140,21 @@ function LandingContent() {
               margin: 0,
             }}
           >
-            어서 오세요
+            {store.welcome_text || '어서 오세요'}
           </h1>
+          {store.welcome_highlight && (
+            <p
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: 'var(--ink-500)',
+                marginTop: 10,
+                marginBottom: 0,
+              }}
+            >
+              {store.welcome_highlight}
+            </p>
+          )}
         </section>
 
         <div
@@ -237,6 +250,36 @@ function LandingContent() {
             >
               이 테이블 주문 기록 ({orderHistory.length}건) {showHistory ? '▲' : '▼'}
             </button>
+          </div>
+        )}
+
+        {store.notice && (
+          <div
+            style={{
+              padding: '14px 18px',
+              borderRadius: 'var(--r-md)',
+              background: 'color-mix(in oklab, var(--ink-900) 5%, white)',
+              border: '1px solid var(--ink-100)',
+              fontSize: 13,
+              color: 'var(--ink-700)',
+              lineHeight: 1.6,
+              marginBottom: 20,
+              whiteSpace: 'pre-wrap',
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--text-3)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 6,
+              }}
+            >
+              공지
+            </div>
+            {store.notice}
           </div>
         )}
 

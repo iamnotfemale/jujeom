@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminApi } from '@/lib/admin-api';
 import { useConfirm } from '@/components/ConfirmProvider';
@@ -26,6 +26,18 @@ type Editable = {
   logo_url: string;
 };
 
+const SECTIONS = [
+  { id: 'store-info', label: '가게 정보' },
+  { id: 'operations', label: '운영 설정' },
+  { id: 'payment', label: '결제 정보' },
+  { id: 'kitchen', label: '주방 설정' },
+  { id: 'reset', label: '데이터 초기화' },
+] as const;
+
+function isDirty(a: Editable, b: Editable): boolean {
+  return (Object.keys(a) as (keyof Editable)[]).some((k) => a[k] !== b[k]);
+}
+
 export default function SettingsPage() {
   const store = useStore();
   const router = useRouter();
@@ -48,27 +60,32 @@ export default function SettingsPage() {
     });
   }, [store.id, store.slug, router]);
 
-  const initial: Editable = {
-    name: store.name,
-    bank_name: store.bank_name,
-    account_number: store.account_number,
-    toss_qr_url: store.toss_qr_url,
-    is_open: store.is_open,
-    is_paused: store.is_paused,
-    serving_mode: store.serving_mode,
-    account_holder: store.account_holder ?? '',
-    closed_message: store.closed_message ?? '',
-    welcome_text: store.welcome_text ?? '',
-    welcome_highlight: store.welcome_highlight ?? '',
-    notice: store.notice ?? '',
-    auto_lock_kds: store.auto_lock_kds ?? false,
-    logo_url: store.logo_url ?? '',
-  };
-  const [form, setForm] = useState<Editable>(initial);
+  const makeInitial = useCallback(
+    (): Editable => ({
+      name: store.name,
+      bank_name: store.bank_name,
+      account_number: store.account_number,
+      toss_qr_url: store.toss_qr_url,
+      is_open: store.is_open,
+      is_paused: store.is_paused,
+      serving_mode: store.serving_mode,
+      account_holder: store.account_holder ?? '',
+      closed_message: store.closed_message ?? '',
+      welcome_text: store.welcome_text ?? '',
+      welcome_highlight: store.welcome_highlight ?? '',
+      notice: store.notice ?? '',
+      auto_lock_kds: store.auto_lock_kds ?? false,
+      logo_url: store.logo_url ?? '',
+    }),
+    [store],
+  );
+
+  const [initial, setInitial] = useState<Editable>(makeInitial);
+  const [form, setForm] = useState<Editable>(makeInitial);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
-  const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const dirty = isDirty(form, initial);
 
   const update = <K extends keyof Editable>(k: K, v: Editable[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -95,7 +112,10 @@ export default function SettingsPage() {
       );
       return;
     }
-    update('logo_url', json.logo_url ?? '');
+    const newUrl = json.logo_url ?? '';
+    update('logo_url', newUrl);
+    // 로고는 별도 API — initial도 동기화해 dirty 상태 오염 방지
+    setInitial((prev) => ({ ...prev, logo_url: newUrl }));
     showToast('로고가 업데이트됐습니다', 'success');
   };
 
@@ -109,12 +129,12 @@ export default function SettingsPage() {
     if (!ok) return;
     await fetch(`/api/admin/${store.slug}/logo`, { method: 'DELETE' });
     update('logo_url', '');
+    setInitial((prev) => ({ ...prev, logo_url: '' }));
     showToast('로고가 삭제됐습니다', 'success');
   };
 
   const handleSave = async () => {
     setSaving(true);
-    // logo_url은 별도 API로만 처리 — PATCH body에서 제외
     const { logo_url: _logoUrl, ...rest } = form;
     const { error } = await adminApi(`/api/stores/${store.slug}`, {
       method: 'PATCH',
@@ -126,10 +146,13 @@ export default function SettingsPage() {
       return;
     }
     showToast('저장되었습니다.', 'success');
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => {
-      window.location.reload();
-    }, 600);
+    // reload 없이 initial을 현재 form 값으로 업데이트 + 라우터 캐시 무효화
+    setInitial({ ...form });
+    router.refresh();
+  };
+
+  const handleRevert = () => {
+    setForm({ ...initial });
   };
 
   const resetData = async (type: 'payments' | 'tables' | 'all') => {
@@ -149,45 +172,43 @@ export default function SettingsPage() {
     else showToast(`${label} 초기화 완료`, 'success');
   };
 
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div style={s.wrap}>
-      <div style={s.inner}>
+    <div style={s.page}>
+      {/* TOC sidebar */}
+      <aside style={s.toc}>
+        <div style={s.tocInner}>
+          <div style={s.tocTitle}>목차</div>
+          {SECTIONS.map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => scrollTo(sec.id)}
+              style={s.tocBtn}
+            >
+              {sec.label}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div style={s.content}>
         <header style={s.header}>
           <h1 style={s.h1}>설정</h1>
           <p style={s.sub}>이 가게의 기본 정보와 영업 상태를 관리합니다.</p>
         </header>
 
-        <Section num="01" title="가게 정보">
-          <Row label="가게 이름">
-            <input
-              value={form.name}
-              onChange={(e) => update('name', e.target.value)}
-              style={s.input}
-            />
-          </Row>
-          <Row label="slug (URL)">
-            <input
-              value={store.slug}
-              disabled
-              style={{ ...s.input, ...s.inputDisabled }}
-            />
-          </Row>
-          <Row label="계좌주명">
-            <input
-              value={form.account_holder}
-              onChange={(e) => update('account_holder', e.target.value)}
-              placeholder="예금주 이름 (없으면 가게 이름으로 표시)"
-              style={s.input}
-            />
-          </Row>
-          <Row label="로고">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* 가게 정보 */}
+        <SectionCard id="store-info" title="가게 정보">
+          <SettingRow label="로고">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               {form.logo_url ? (
-                <img
-                  src={form.logo_url}
-                  alt="로고"
-                  style={s.logoImg}
-                />
+                <img src={form.logo_url} alt="로고" style={s.logoImg} />
               ) : (
                 <div style={s.logoPlaceholder}>酒</div>
               )}
@@ -223,85 +244,64 @@ export default function SettingsPage() {
                 }}
               />
             </div>
-          </Row>
-        </Section>
-
-        <Section num="02" title="가게 소개">
-          <Row label="환영 문구">
+          </SettingRow>
+          <SettingRow label="가게 이름">
+            <input
+              value={form.name}
+              onChange={(e) => update('name', e.target.value)}
+              style={s.input}
+            />
+          </SettingRow>
+          <SettingRow label="slug (URL)">
+            <input
+              value={store.slug}
+              disabled
+              style={{ ...s.input, ...s.inputDisabled }}
+            />
+          </SettingRow>
+          <SettingRow label="가게 소개" hint="손님 주문 화면에 표시됩니다">
             <input
               value={form.welcome_text}
               onChange={(e) => update('welcome_text', e.target.value)}
               placeholder="예: 어서 오세요, 즐거운 한 잔 되세요."
               style={s.input}
             />
-          </Row>
-          <Row label="강조 텍스트">
+          </SettingRow>
+          <SettingRow label="강조 문구">
             <input
               value={form.welcome_highlight}
               onChange={(e) => update('welcome_highlight', e.target.value)}
               placeholder="예: 오늘도 맛있게!"
               style={s.input}
             />
-          </Row>
-          <Row label="공지사항">
+          </SettingRow>
+          <SettingRow label="공지사항" hint="손님 주문 화면 하단에 표시됩니다">
             <textarea
               value={form.notice}
               onChange={(e) => update('notice', e.target.value)}
               rows={3}
               style={{ ...s.input, ...s.textarea }}
             />
-          </Row>
-          <Row label="영업 종료 메시지">
+          </SettingRow>
+          <SettingRow label="마감 메시지">
             <input
               value={form.closed_message}
               onChange={(e) => update('closed_message', e.target.value)}
               placeholder="예: 오늘 영업은 종료되었습니다."
               style={s.input}
             />
-          </Row>
-        </Section>
+          </SettingRow>
+        </SectionCard>
 
-        <Section num="03" title="결제 정보">
-          <Row label="은행">
-            <select
-              value={form.bank_name}
-              onChange={(e) => update('bank_name', e.target.value)}
-              style={s.input}
-            >
-              <option value="">선택하세요</option>
-              {BANK_OPTIONS.map((b) => (
-                <option key={b.code} value={b.code}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </Row>
-          <Row label="계좌번호">
-            <input
-              value={form.account_number}
-              onChange={(e) => update('account_number', e.target.value)}
-              placeholder="예: 123-456-789012"
-              style={s.input}
-            />
-          </Row>
-          <Row label="토스 QR 링크 (선택)">
-            <input
-              value={form.toss_qr_url}
-              onChange={(e) => update('toss_qr_url', e.target.value)}
-              placeholder="https://toss.me/..."
-              style={s.input}
-            />
-          </Row>
-        </Section>
-
-        <Section num="04" title="영업 설정">
-          <Row label="영업 중">
+        {/* 운영 설정 */}
+        <SectionCard id="operations" title="운영 설정">
+          <SettingRow label="영업 중">
             <Toggle checked={form.is_open} onChange={(v) => update('is_open', v)} />
-          </Row>
-          <Row label="주문 일시 중지">
+          </SettingRow>
+          <SettingRow label="주문 일시 중단">
             <Toggle checked={form.is_paused} onChange={(v) => update('is_paused', v)} />
-          </Row>
-          <Row label="서빙 방식">
+          </SettingRow>
+          <SettingRow label="서빙 방식">
             <div style={{ display: 'flex', gap: 8 }}>
               {(
                 [
@@ -314,6 +314,7 @@ export default function SettingsPage() {
                   <button
                     key={m.key}
                     type="button"
+                    title={m.hint}
                     onClick={() => update('serving_mode', m.key)}
                     style={{
                       padding: '10px 16px',
@@ -333,16 +334,60 @@ export default function SettingsPage() {
                 );
               })}
             </div>
-          </Row>
-        </Section>
+          </SettingRow>
+        </SectionCard>
 
-        <Section num="05" title="KDS 설정">
-          <Row label="자동 잠금">
+        {/* 결제 정보 */}
+        <SectionCard id="payment" title="결제 정보">
+          <SettingRow label="은행">
+            <select
+              value={form.bank_name}
+              onChange={(e) => update('bank_name', e.target.value)}
+              style={s.input}
+            >
+              <option value="">선택하세요</option>
+              {BANK_OPTIONS.map((b) => (
+                <option key={b.code} value={b.code}>
+                  {b.label}
+                </option>
+              ))}
+            </select>
+          </SettingRow>
+          <SettingRow label="계좌번호">
+            <input
+              value={form.account_number}
+              onChange={(e) => update('account_number', e.target.value)}
+              placeholder="예: 123-456-789012"
+              style={s.input}
+            />
+          </SettingRow>
+          <SettingRow label="예금주">
+            <input
+              value={form.account_holder}
+              onChange={(e) => update('account_holder', e.target.value)}
+              placeholder="예금주 이름 (없으면 가게 이름으로 표시)"
+              style={s.input}
+            />
+          </SettingRow>
+          <SettingRow label="토스 QR URL">
+            <input
+              value={form.toss_qr_url}
+              onChange={(e) => update('toss_qr_url', e.target.value)}
+              placeholder="https://toss.me/..."
+              style={s.input}
+            />
+          </SettingRow>
+        </SectionCard>
+
+        {/* 주방 설정 */}
+        <SectionCard id="kitchen" title="주방 설정">
+          <SettingRow label="KDS 자동 잠금">
             <Toggle checked={form.auto_lock_kds} onChange={(v) => update('auto_lock_kds', v)} />
-          </Row>
-        </Section>
+          </SettingRow>
+        </SectionCard>
 
-        <Section num="06" title="데이터 초기화">
+        {/* 데이터 초기화 */}
+        <SectionCard id="reset" title="데이터 초기화">
           <p style={s.resetDesc}>
             축제 전 연습·테스트 데이터를 지울 때 사용하세요.{' '}
             <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
@@ -358,50 +403,77 @@ export default function SettingsPage() {
               전체 초기화
             </button>
           </div>
-        </Section>
+        </SectionCard>
 
-        <div style={s.saveBar}>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="btn btn-accent"
-            style={{ minWidth: 140 }}
-          >
-            {saving ? '저장 중…' : '저장'}
-          </button>
-        </div>
+        {/* bottom padding */}
+        <div style={{ height: 120 }} />
       </div>
+
+      {/* Fixed bottom save bar — shown only when there are unsaved changes */}
+      {dirty && (
+        <div style={s.saveBar}>
+          <span style={s.saveBarMsg}>저장하지 않은 변경사항이 있습니다</span>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleRevert}
+              disabled={saving}
+              className="btn btn-ghost btn-sm"
+            >
+              되돌리기
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="btn btn-accent btn-sm"
+              style={{ minWidth: 80 }}
+            >
+              {saving ? '저장 중…' : '저장'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Section({
-  num,
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function SectionCard({
+  id,
   title,
   children,
 }: {
-  num: string;
+  id: string;
   title: string;
   children: React.ReactNode;
 }) {
   return (
-    <section style={sect.wrap}>
-      <header style={sect.head}>
-        <span style={sect.num}>{num}</span>
-        <h2 style={sect.title}>{title}</h2>
-      </header>
+    <section id={id} style={sect.wrap}>
+      <h2 style={sect.title}>{title}</h2>
       <div style={sect.body}>{children}</div>
     </section>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function SettingRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label style={row.wrap}>
-      <span style={row.label}>{label}</span>
+    <div style={row.wrap}>
+      <div style={row.labelCol}>
+        <span style={row.label}>{label}</span>
+        {hint && <span style={row.hint}>{hint}</span>}
+      </div>
       <div style={row.field}>{children}</div>
-    </label>
+    </div>
   );
 }
 
@@ -439,12 +511,61 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
-// ─── Style objects ───────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  wrap: { minHeight: '100%', background: 'var(--bg)', padding: '32px 32px 80px' },
-  inner: { maxWidth: 780, margin: '0 auto' },
-  header: { marginBottom: 28 },
+  page: {
+    display: 'flex',
+    minHeight: '100%',
+    background: '#F5F5F7',
+    position: 'relative',
+  },
+  toc: {
+    // hidden on mobile via media query not available in inline styles;
+    // we use a fixed-width sidebar that's just invisible at narrow widths
+    width: 180,
+    flexShrink: 0,
+    // hide at narrow viewport via CSS display none via a wrapper trick
+    // (see tocInner below for the sticky positioning)
+  },
+  tocInner: {
+    position: 'sticky',
+    top: 32,
+    padding: '32px 16px 32px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  tocTitle: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: 'var(--text-3)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+    marginBottom: 8,
+  },
+  tocBtn: {
+    background: 'none',
+    border: 'none',
+    textAlign: 'left',
+    padding: '6px 10px',
+    borderRadius: 'var(--r-sm)',
+    fontSize: 13,
+    fontWeight: 500,
+    color: 'var(--text-2)',
+    cursor: 'pointer',
+    fontFamily: 'var(--f-sans)',
+    transition: 'background .1s, color .1s',
+  },
+  content: {
+    flex: 1,
+    padding: '32px 28px 0',
+    maxWidth: 700,
+    minWidth: 0,
+  },
+  header: {
+    marginBottom: 24,
+  },
   h1: {
     fontSize: 26,
     fontWeight: 800,
@@ -452,13 +573,16 @@ const s: Record<string, React.CSSProperties> = {
     letterSpacing: '-0.02em',
     marginBottom: 6,
   },
-  sub: { fontSize: 14, color: 'var(--text-2)' },
+  sub: {
+    fontSize: 14,
+    color: 'var(--text-2)',
+  },
   input: {
     width: '100%',
     padding: '10px 12px',
     borderRadius: 'var(--r-md)',
     border: '1px solid var(--border)',
-    background: 'var(--surface)',
+    background: '#fff',
     color: 'var(--ink-900)',
     fontSize: 14,
     fontFamily: 'var(--f-sans)',
@@ -470,7 +594,10 @@ const s: Record<string, React.CSSProperties> = {
     color: 'var(--text-3)',
     cursor: 'not-allowed',
   },
-  textarea: { resize: 'vertical', minHeight: 80 },
+  textarea: {
+    resize: 'vertical',
+    minHeight: 80,
+  },
   logoImg: {
     width: 56,
     height: 56,
@@ -488,46 +615,79 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: 22,
     border: '1px solid var(--border)',
   },
-  resetDesc: { fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 },
+  resetDesc: {
+    fontSize: 13,
+    color: 'var(--text-2)',
+    marginBottom: 12,
+    lineHeight: 1.6,
+  },
   saveBar: {
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 64,
+    background: 'var(--ink-900)',
     display: 'flex',
-    justifyContent: 'flex-end',
-    marginTop: 28,
-    paddingTop: 20,
-    borderTop: '1px solid var(--border)',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 28px',
+    zIndex: 100,
+    boxShadow: '0 -2px 16px rgba(14,18,32,.18)',
+  },
+  saveBarMsg: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'rgba(255,255,255,.8)',
   },
 };
 
 const sect: Record<string, React.CSSProperties> = {
   wrap: {
-    background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--r-lg)',
-    padding: 24,
-    marginBottom: 20,
-    boxShadow: 'var(--shadow-1)',
-  },
-  head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 },
-  num: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: 'var(--text-3)',
-    fontVariantNumeric: 'tabular-nums',
-    padding: '3px 8px',
-    background: 'var(--ink-050)',
-    borderRadius: 'var(--r-sm)',
+    background: '#fff',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
   title: {
-    fontSize: 16,
-    fontWeight: 800,
-    color: 'var(--ink-900)',
-    letterSpacing: '-0.01em',
+    fontSize: 13,
+    fontWeight: 700,
+    color: 'var(--text-2)',
+    padding: '14px 20px 12px',
+    borderBottom: '1px solid var(--border)',
+    margin: 0,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
   },
-  body: { display: 'flex', flexDirection: 'column', gap: 14 },
+  body: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
 };
 
 const row: Record<string, React.CSSProperties> = {
-  wrap: { display: 'grid', gridTemplateColumns: '160px 1fr', alignItems: 'center', gap: 16 },
-  label: { fontSize: 13, fontWeight: 600, color: 'var(--text-2)' },
+  wrap: {
+    display: 'grid',
+    gridTemplateColumns: '160px 1fr',
+    alignItems: 'center',
+    gap: 16,
+    padding: '14px 20px',
+    borderBottom: '1px solid var(--ink-050)',
+  },
+  labelCol: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'var(--ink-800)',
+  },
+  hint: {
+    fontSize: 11,
+    color: 'var(--text-3)',
+    lineHeight: 1.4,
+  },
   field: {},
 };

@@ -98,7 +98,7 @@ export default function PaymentsPage() {
           paymentStatus: (payMap[o.id]?.status ?? 'waiting') as PaymentRow['paymentStatus'],
           method: (payMap[o.id]?.method ?? 'transfer') as PaymentRow['method'],
           createdAt: o.created_at,
-          note: null,
+          note: o.note ?? null,
         }))
       );
     } catch (err) {

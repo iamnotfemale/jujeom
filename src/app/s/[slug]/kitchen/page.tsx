@@ -45,6 +45,7 @@ export default function KitchenKDSPage() {
   const [paused, setPaused] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [dialog, setDialog] = useState<ConfirmDialog | null>(null);
+  const [wakeLockActive, setWakeLockActive] = useState(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const storeName = store.name;
   const servingMode = store.serving_mode;
@@ -124,6 +125,29 @@ export default function KitchenKDSPage() {
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // WakeLock — prevent screen from turning off
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    const acquire = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          lock = await (navigator as unknown as { wakeLock: { request: (type: string) => Promise<WakeLockSentinel> } }).wakeLock.request('screen');
+          setWakeLockActive(true);
+        }
+      } catch { /* ignore */ }
+    };
+    acquire();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') acquire();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      lock?.release().catch(() => {});
+      setWakeLockActive(false);
+    };
   }, []);
 
   const updateStatus = async (orderId: number, newOrderStatus: string) => {
@@ -247,8 +271,16 @@ export default function KitchenKDSPage() {
             </div>
           </div>
           <div style={k.topRight}>
-            <div style={k.wakeHint}>
-              <span style={{ fontSize: 12 }}>화면 꺼짐 방지</span>
+            <div style={{
+              ...k.wakeHint,
+              background: wakeLockActive
+                ? 'color-mix(in oklab, var(--amber) 20%, var(--ink-900))'
+                : 'color-mix(in oklab, var(--ink-400) 20%, var(--ink-900))',
+              color: wakeLockActive ? 'var(--amber)' : 'var(--ink-400)',
+            }}>
+              <span style={{ fontSize: 12 }}>
+                {wakeLockActive ? '화면 꺼짐 방지 중' : '미지원'}
+              </span>
             </div>
             <button
               onClick={() => setPaused(!paused)}

@@ -421,7 +421,7 @@ export default function TablesPage() {
   };
 
   const qrUrl = selectedTable && selectedTable.kind === 'table'
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/s/${store.slug}/order/menu?table=${selectedTable.number}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/s/${store.slug}/order?table=${selectedTable.number}`
     : '';
 
   if (loading) {

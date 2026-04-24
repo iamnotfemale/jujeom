@@ -99,6 +99,48 @@ export async function POST(
   return NextResponse.json({ ok: true, userId: targetUser.id });
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const { slug } = await params;
+  const check = await requireStoreRole(slug, 'owner');
+  if (check.error) return check.error;
+
+  let body: { userId?: string; role?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+  }
+
+  const { userId, role } = body;
+  if (!userId || !role) return NextResponse.json({ error: 'missing_fields' }, { status: 400 });
+  if (role !== 'manager' && role !== 'kitchen') {
+    return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
+  }
+
+  const { data: target } = await supabaseAdmin
+    .from('store_members')
+    .select('role')
+    .eq('store_id', check.store.id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if ((target as { role?: string } | null)?.role === 'owner') {
+    return NextResponse.json({ error: 'cannot_change_owner_role' }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('store_members')
+    .update({ role })
+    .eq('store_id', check.store.id)
+    .eq('user_id', userId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },

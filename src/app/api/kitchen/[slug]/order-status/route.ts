@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { requireStoreRole } from '@/lib/require-store-role';
 import { writeAuditLog, clientIp } from '@/lib/audit-log';
 
@@ -24,8 +24,9 @@ export async function POST(
     return NextResponse.json({ error: 'missing_fields' }, { status: 400 });
   }
 
-  // RPC가 store_id 검증, 권한 확인, 재고 원복까지 처리
-  const { error } = await supabaseAdmin.rpc('admin_set_order_status', {
+  // 유저 세션 client로 호출 — RPC 내부 auth.uid() 검증 통과용
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('admin_set_order_status', {
     p_store_id: check.store.id,
     p_order_id: body.orderId,
     p_new_status: body.newStatus,

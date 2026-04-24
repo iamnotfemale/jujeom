@@ -95,6 +95,20 @@ export default function MembersPage() {
     fetchMembers();
   };
 
+  const handleRoleChange = async (member: MemberItem, newRole: 'manager' | 'kitchen') => {
+    if (newRole === member.role) return;
+    const { error } = await adminApi(`/api/admin/${store.slug}/members`, {
+      method: 'PATCH',
+      body: { userId: member.userId, role: newRole },
+    });
+    if (error) {
+      showToast('역할 변경 실패: ' + error, 'error');
+      return;
+    }
+    showToast('역할을 변경했습니다');
+    fetchMembers();
+  };
+
   const handleRemove = async (member: MemberItem) => {
     const ok = await confirm({
       title: '멤버 제거',
@@ -160,9 +174,21 @@ export default function MembersPage() {
                       )}
                     </div>
                   </div>
-                  <span style={{ ...s.roleBadge, ...roleBadgeStyle(m.role) }}>
-                    {ROLE_LABEL[m.role]}
-                  </span>
+                  {isOwner && !isOwnerMember && !isSelf ? (
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRoleChange(m, e.target.value as 'manager' | 'kitchen')}
+                      style={s.roleChangeSelect}
+                      title="역할 변경"
+                    >
+                      <option value="manager">매니저</option>
+                      <option value="kitchen">주방</option>
+                    </select>
+                  ) : (
+                    <span style={{ ...s.roleBadge, ...roleBadgeStyle(m.role) }}>
+                      {ROLE_LABEL[m.role]}
+                    </span>
+                  )}
                   {isOwner && !isOwnerMember && !isSelf && (
                     <button
                       onClick={() => handleRemove(m)}
@@ -344,6 +370,19 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: 'var(--r-pill)',
     fontSize: 11,
     fontWeight: 700,
+    flexShrink: 0,
+  },
+  roleChangeSelect: {
+    height: 30,
+    padding: '0 8px',
+    borderRadius: 'var(--r-pill)',
+    border: '1px solid var(--border)',
+    fontSize: 11,
+    fontWeight: 700,
+    fontFamily: 'var(--f-sans)',
+    background: 'var(--white)',
+    cursor: 'pointer',
+    outline: 'none',
     flexShrink: 0,
   },
   removeBtn: {
