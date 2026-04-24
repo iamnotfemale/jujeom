@@ -248,7 +248,7 @@ function MenuContent() {
           }}
         >
           <Link
-            href={`/order?table=${table}`}
+            href={`/s/${store.slug}/order?table=${table}`}
             style={{
               width: 36,
               height: 36,

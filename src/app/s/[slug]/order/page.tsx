@@ -93,9 +93,13 @@ function LandingContent() {
                 color: 'var(--neon)',
                 fontWeight: 800,
                 fontSize: 18,
+                overflow: 'hidden',
+                flexShrink: 0,
               }}
             >
-              {store.name.charAt(0)}
+              {store.logo_url
+                ? <img src={store.logo_url} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : store.name.charAt(0)}
             </div>
             <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--ink-900)' }}>
               {store.name}
