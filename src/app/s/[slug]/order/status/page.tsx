@@ -14,6 +14,7 @@ interface CustomerOrder {
   final_amount: number;
   table_number: number | null;
   customer_name: string | null;
+  note: string | null;
   created_at: string;
   items: { menu_name: string; quantity: number; unit_price: number; options: string | null }[];
   payment_status: string;
@@ -257,7 +258,16 @@ function OrderStatusPage() {
             </div>
           </section>
 
-          {/* Note card — Phase 2d에서 orders.note 컬럼 복구 후 다시 활성화 */}
+          {/* Note card */}
+          {order?.note && (
+            <section style={{
+              background: 'var(--surface)', borderRadius: 'var(--r-lg)',
+              border: '1px solid var(--border)', padding: 16,
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>요청 사항</div>
+              <div style={{ fontSize: 14, color: 'var(--text-2)', lineHeight: 1.6 }}>{order.note}</div>
+            </section>
+          )}
         </main>
 
         {/* ── Bottom button ────────────────── */}

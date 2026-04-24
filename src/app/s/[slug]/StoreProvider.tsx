@@ -12,6 +12,13 @@ export interface StoreInfo {
   bank_name: string;
   account_number: string;
   toss_qr_url: string;
+  account_holder: string | null;
+  closed_message: string | null;
+  welcome_text: string | null;
+  welcome_highlight: string | null;
+  notice: string | null;
+  auto_lock_kds: boolean;
+  logo_url: string | null;
 }
 
 const StoreContext = createContext<StoreInfo | null>(null);

@@ -35,7 +35,9 @@ export async function PATCH(
 
   // 허용 필드만
   const allowed = ['name', 'is_open', 'is_paused', 'serving_mode',
-                   'bank_name', 'account_number', 'toss_qr_url'] as const;
+                   'bank_name', 'account_number', 'toss_qr_url',
+                   'account_holder', 'closed_message', 'welcome_text',
+                   'welcome_highlight', 'notice', 'auto_lock_kds', 'logo_url'] as const;
   const patch: Record<string, unknown> = {};
   for (const k of allowed) if (k in body) patch[k] = body[k];
 

@@ -48,8 +48,7 @@ function OrderConfirmPage() {
   const storeName = store.name;
   const accountNo = store.account_number;
   const bankName = store.bank_name;
-  // 계좌주 정보는 신스키마에 없음 — 가게 이름을 폴백으로 사용. Phase 2d에서 account_holder 컬럼 추가 고려.
-  const accountHolder = store.name;
+  const accountHolder = store.account_holder ?? store.name;
   const accountInfo = `${bankName}${bankName ? ' · ' : ''}${accountHolder} ${accountNo}`;
 
   const [hydrated, setHydrated] = useState(false);
@@ -185,9 +184,8 @@ function OrderConfirmPage() {
         })),
         p_customer_name: customerName.trim(),
         p_method: method,
+        p_note: note.trim() || null,
       });
-      // note는 Phase 2d에서 orders.note 컬럼 추가 후 반영 예정.
-      void note;
 
       if (error) {
         console.error('create_order_atomic error:', error);

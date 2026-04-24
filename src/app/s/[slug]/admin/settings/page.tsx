@@ -7,12 +7,6 @@ import { useToast } from '@/components/ToastProvider';
 import { BANK_OPTIONS } from '@/lib/banks';
 import { useStore } from '../../StoreProvider';
 
-/**
- * Phase 2bc 임시 버전 — `store_settings` 제거로 필드 폭이 축소됨.
- * closed_message / welcome_text / welcome_highlight / notice / account_holder
- * / auto_lock_kds / logo 업로드 기능은 Phase 2d에서 stores 테이블 컬럼 확장 후 복구 예정.
- */
-
 type Editable = {
   name: string;
   bank_name: string;
@@ -21,6 +15,13 @@ type Editable = {
   is_open: boolean;
   is_paused: boolean;
   serving_mode: 'pickup' | 'table';
+  account_holder: string;
+  closed_message: string;
+  welcome_text: string;
+  welcome_highlight: string;
+  notice: string;
+  auto_lock_kds: boolean;
+  logo_url: string;
 };
 
 export default function SettingsPage() {
@@ -36,6 +37,13 @@ export default function SettingsPage() {
     is_open: store.is_open,
     is_paused: store.is_paused,
     serving_mode: store.serving_mode,
+    account_holder: store.account_holder ?? '',
+    closed_message: store.closed_message ?? '',
+    welcome_text: store.welcome_text ?? '',
+    welcome_highlight: store.welcome_highlight ?? '',
+    notice: store.notice ?? '',
+    auto_lock_kds: store.auto_lock_kds ?? false,
+    logo_url: store.logo_url ?? '',
   };
   const [form, setForm] = useState<Editable>(initial);
   const [saving, setSaving] = useState(false);
@@ -99,9 +107,52 @@ export default function SettingsPage() {
           <Row label="slug (URL)">
             <input value={store.slug} disabled style={{ ...s.input, ...s.inputDisabled }} />
           </Row>
+          <Row label="계좌주명">
+            <input
+              value={form.account_holder}
+              onChange={(e) => update('account_holder', e.target.value)}
+              placeholder="예금주 이름 (없으면 가게 이름으로 표시)"
+              style={s.input}
+            />
+          </Row>
         </Section>
 
-        <Section num="02" title="결제 정보">
+        <Section num="02" title="가게 소개">
+          <Row label="환영 문구">
+            <input
+              value={form.welcome_text}
+              onChange={(e) => update('welcome_text', e.target.value)}
+              placeholder="예: 어서 오세요, 즐거운 한 잔 되세요."
+              style={s.input}
+            />
+          </Row>
+          <Row label="강조 텍스트">
+            <input
+              value={form.welcome_highlight}
+              onChange={(e) => update('welcome_highlight', e.target.value)}
+              placeholder="예: 오늘도 맛있게!"
+              style={s.input}
+            />
+          </Row>
+          <Row label="공지사항">
+            <textarea
+              value={form.notice}
+              onChange={(e) => update('notice', e.target.value)}
+              rows={3}
+              style={{ ...s.input, resize: 'none' }}
+            />
+          </Row>
+          <Row label="영업 종료 메시지">
+            <input
+              value={form.closed_message}
+              onChange={(e) => update('closed_message', e.target.value)}
+              placeholder="예: 오늘 영업은 종료되었습니다."
+              style={s.input}
+            />
+          </Row>
+        </Section>
+
+        <Section num="03" title="결제 정보">
           <Row label="은행">
             <select
               value={form.bank_name}
@@ -134,7 +185,7 @@ export default function SettingsPage() {
           </Row>
         </Section>
 
-        <Section num="03" title="영업 설정">
+        <Section num="04" title="영업 설정">
           <Row label="영업 중">
             <Toggle checked={form.is_open} onChange={(v) => update('is_open', v)} />
           </Row>
@@ -176,7 +227,13 @@ export default function SettingsPage() {
           </Row>
         </Section>
 
-        <Section num="04" title="데이터 초기화">
+        <Section num="05" title="KDS 설정">
+          <Row label="자동 잠금">
+            <Toggle checked={form.auto_lock_kds} onChange={(v) => update('auto_lock_kds', v)} />
+          </Row>
+        </Section>
+
+        <Section num="06" title="데이터 초기화">
           <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, lineHeight: 1.6 }}>
             축제 전 연습·테스트 데이터를 지울 때 사용하세요. <strong style={{ color: 'var(--crim)' }}>되돌릴 수 없습니다.</strong>
           </p>
