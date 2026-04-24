@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -17,25 +18,18 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) {
+
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (authError) {
       setLoading(false);
-      setError(mapLoginError(data.error || '로그인 중 오류가 발생했습니다.'));
+      setError(mapLoginError(authError.message));
       return;
     }
-    // 서버 Set-Cookie가 실패할 경우를 대비한 클라이언트 측 세션 저장 fallback
-    if (data.access_token && data.refresh_token) {
-      const { createClient } = await import('@/lib/supabase/client');
-      await createClient().auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-    }
+
+    // 브라우저 클라이언트가 document.cookie에 직접 세션 쿠키를 설정하므로
+    // 전체 네비게이션 시 서버로 쿠키가 즉시 전달됨
     window.location.href = next;
   };
 
