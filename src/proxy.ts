@@ -3,16 +3,18 @@ import { updateSession } from '@/lib/supabase/proxy';
 
 /**
  * Next.js 16: `middleware.ts`의 새 이름은 `proxy.ts` (기능 동일).
- * Supabase Auth 세션을 매 요청마다 갱신하고, 보호 경로를 가드한다.
  *
- * 보호 경로:
- *   /admin/*, /kitchen/*, /dashboard  → 비로그인이면 /login 으로 리다이렉트
+ * 역할:
+ *   1. updateSession() — 만료 임박 토큰을 refresh하여 쿠키 갱신
+ *   2. 보호 경로 가드 — Supabase 세션 쿠키 존재 여부로 낙관적 체크
+ *      (실제 세션 유효성은 각 페이지·레이아웃의 getUser()/getSession()이 최종 검증)
  *
- * 공개 경로:
- *   /, /login, /auth/*, /order/*, /s/*, /api/*
+ * 보호 경로: /admin/*, /kitchen/*, /dashboard/**
+ * 공개 경로: /, /login, /auth/*, /order/*, /s/*, /api/*
  */
 export async function proxy(request: NextRequest) {
-  const { response, user } = await updateSession(request);
+  // 만료 임박 토큰 갱신 — 갱신된 쿠키가 response에 Set-Cookie로 포함됨
+  const { response } = await updateSession(request);
 
   const path = request.nextUrl.pathname;
   const isProtected =
@@ -23,11 +25,21 @@ export async function proxy(request: NextRequest) {
     /^\/s\/[^/]+\/admin(\/|$)/.test(path) ||
     /^\/s\/[^/]+\/kitchen(\/|$)/.test(path);
 
-  if (isProtected && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('next', path);
-    return NextResponse.redirect(url);
+  if (isProtected) {
+    // Supabase 세션 쿠키(sb-<ref>-auth-token*)가 있는지 직접 확인
+    // getSession()은 서버 클라이언트 초기화 타이밍에 따라 실패할 수 있어 쿠키를 직접 본다
+    const ref =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https?:\/\/([^.]+)\./)?.[1] ?? '';
+    const hasToken =
+      ref !== '' &&
+      request.cookies.getAll().some((c) => c.name.startsWith(`sb-${ref}-auth-token`));
+
+    if (!hasToken) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      url.searchParams.set('next', path);
+      return NextResponse.redirect(url);
+    }
   }
 
   return response;
@@ -35,10 +47,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * 정적 자산, _next 내부 경로, favicon 등은 제외.
-     * 세션 갱신이 필요 없는 경로라도 supabase 쿠키는 요청마다 경유해야 함.
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 };
