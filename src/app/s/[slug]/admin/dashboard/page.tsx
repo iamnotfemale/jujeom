@@ -192,7 +192,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="px-7 pt-6 pb-10 max-w-[1060px]">
+    <div className="px-4 md:px-7 pt-6 pb-10 max-w-[1060px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
@@ -235,7 +235,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
           <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">오늘 총 주문</div>
           <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{stats.totalOrders}</div>
@@ -267,7 +267,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Two column layout */}
-      <div className="grid gap-4 items-start" style={{ gridTemplateColumns: '1.4fr 1fr' }}>
+      <div className="grid gap-4 items-start grid-cols-1 lg:grid-cols-[1.4fr_1fr]">
         {/* Left: Tables grid */}
         <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
           <div className="flex items-center justify-between py-[14px] px-[18px] border-b border-[var(--ink-100)]">
@@ -276,7 +276,7 @@ export default function DashboardPage() {
               {tables.filter((t) => t.status !== 'empty').length}/{tables.length} 이용 중
             </span>
           </div>
-          <div className="grid gap-2 p-[14px]" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          <div className="grid gap-2 p-[14px]" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))' }}>
             {tables.map((table) => (
               <div
                 key={table.id}

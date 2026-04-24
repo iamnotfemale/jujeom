@@ -179,8 +179,8 @@ export default function SettingsPage() {
 
   return (
     <div style={s.page}>
-      {/* TOC sidebar */}
-      <aside style={s.toc}>
+      {/* TOC sidebar — hidden on mobile */}
+      <aside style={s.toc} className="hidden lg:block">
         <div style={s.tocInner}>
           <div style={s.tocTitle}>목차</div>
           {SECTIONS.map((sec) => (
@@ -560,7 +560,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   content: {
     flex: 1,
-    padding: '32px 28px 0',
+    padding: '24px 16px 0',
     maxWidth: 700,
     minWidth: 0,
   },

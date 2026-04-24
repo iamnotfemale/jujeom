@@ -389,7 +389,6 @@ export default function LandingPage() {
             <a href="#faq">문의</a>
           </div>
           <div className="nav-cta">
-            <Link href="/dashboard" className="btn btn-ghost btn-sm">데모 보기</Link>
             <Link href="/signup" className="btn btn-primary btn-sm">시작하기</Link>
           </div>
         </div>
@@ -409,12 +408,11 @@ export default function LandingPage() {
               간편하게. <b>차림</b> 하나로 끝내보세요
             </p>
             <div className="hero-ctas">
-              <Link className="btn btn-accent btn-lg" href="/signup">무료로 주점 만들기 →</Link>
+              <Link className="btn btn-accent btn-lg" href="/signup">주점 시작하기 →</Link>
               <Link className="btn btn-ghost btn-lg" href="/login">관리자 로그인</Link>
             </div>
             <div className="hero-trust">
               <div><strong>5개</strong>주점까지 동시 운영</div>
-              <div><strong>0원</strong>학생회 무료 제공</div>
               <div><strong>3분</strong>안에 첫 QR 설정</div>
             </div>
           </div>
@@ -481,21 +479,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Logo bar ── */}
-      <section className="logo-bar">
-        <div className="container">
-          <div className="logo-bar-label">이런 주점에서 쓰고 있어요</div>
-          <div className="logo-bar-inner">
-            <span className="ll">컴공 주점</span>
-            <span className="ll">디자인학부 라운지</span>
-            <span className="ll">경영 BAR</span>
-            <span className="ll">사학과 주막</span>
-            <span className="ll">기계공 호프</span>
-            <span className="ll">농구동아리 포차</span>
-          </div>
-        </div>
-      </section>
-
       {/* ── Features ── */}
       <section className="features" id="features">
         <div className="container">
@@ -539,7 +522,6 @@ export default function LandingPage() {
               </div>
               <p className="fbody">계좌를 한 번 등록하면, 손님들의 결제가 쉬워져요. Toss를 이용해 3초 만에 입금할 수 있어요.</p>
               <div className="fchips">
-                <span className="fchip">카드 수수료 0</span>
                 <span className="fchip">미확인 필터</span>
               </div>
             </div>
@@ -749,8 +731,7 @@ export default function LandingPage() {
               <h2 className="lp-h2" style={{ marginTop: 14 }}>올해 축제는,<br />주방이 조용했으면.</h2>
               <p className="lp-p">손 주문 사라지고, 계산 실수 사라지고, 학생회 새벽 엑셀 사라지고. 메뉴만 남는 차림을 써보세요.</p>
               <div className="fb-cta">
-                <Link className="btn btn-primary btn-lg" href="/signup">무료로 주점 만들기</Link>
-                <Link className="btn btn-ghost btn-lg" href="/dashboard">관리자 데모 둘러보기</Link>
+                <Link className="btn btn-primary btn-lg" href="/signup">주점 시작하기</Link>
               </div>
             </div>
             <div className="final-mock">
@@ -775,7 +756,7 @@ export default function LandingPage() {
               <a className="lp-logo" href="/">
                 <span className="mk">酒</span>
                 <span className="wm" style={{ color: '#fff' }}>
-                  jujeom
+                  차림
                   <small style={{ color: '#8A91A5' }}>for student festival</small>
                 </span>
               </a>
@@ -800,7 +781,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="ft-bot">
-            <div>© 2026 jujeom · 학생 사이드 프로젝트</div>
+            <div>© 2026 차림 · 학생 사이드 프로젝트</div>
             <div>
               <Link href="/terms">이용약관</Link>
               <Link href="/privacy">개인정보처리방침</Link>

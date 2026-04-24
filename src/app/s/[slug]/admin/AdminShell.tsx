@@ -45,6 +45,8 @@ export default function AdminShell({
   const store = useStore();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [staffCall, setStaffCall] = useState<{ table: string; time: string } | null>(null);
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [paymentPendingCount, setPaymentPendingCount] = useState<number | null>(null);
@@ -115,167 +117,161 @@ export default function AdminShell({
   ], [menuCount, paymentPendingCount, role, store.slug]);
 
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 1024px), (orientation: portrait)');
-    const handler = (e: MediaQueryListEvent | MediaQueryList) => setCollapsed(e.matches);
-    handler(mq);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
+    const mqMobile = window.matchMedia('(max-width: 767px)');
+    const mqTablet = window.matchMedia('(max-width: 1023px)');
+    const handleMobile = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+      if (e.matches) setMobileOpen(false);
+    };
+    const handleTablet = (e: MediaQueryListEvent | MediaQueryList) => setCollapsed(e.matches);
+    handleMobile(mqMobile);
+    handleTablet(mqTablet);
+    mqMobile.addEventListener('change', handleMobile);
+    mqTablet.addEventListener('change', handleTablet);
+    return () => {
+      mqMobile.removeEventListener('change', handleMobile);
+      mqTablet.removeEventListener('change', handleTablet);
+    };
   }, []);
 
   const handleLogout = () => {
     window.location.href = '/auth/logout';
   };
 
+  const showLabel = isMobile ? true : !collapsed;
+
+  const sidebarInner = (
+    <aside style={{ ...styles.sidebar, ...(isMobile ? { width: 260, height: '100%' } : {}) }}>
+      <div style={styles.brand}>
+        <div style={styles.logo}>{storeName.charAt(0)}</div>
+        {showLabel && (
+          <div>
+            <div style={styles.brandName}>{storeName}</div>
+            <div style={styles.brandSub}>관리자 콘솔</div>
+          </div>
+        )}
+      </div>
+      <nav style={styles.nav}>
+        {navSections.map((section) => (
+          <div key={section.label} style={styles.navSection}>
+            {showLabel && <div style={styles.navSectionLabel}>{section.label}</div>}
+            {section.items.map((item) => {
+              const isActive = !item.external && (pathname === item.href || pathname?.startsWith(item.href + '/'));
+              const linkStyle = {
+                ...styles.navItem,
+                ...(isActive ? styles.navItemActive : {}),
+                justifyContent: showLabel ? 'flex-start' : 'center',
+                padding: showLabel ? '10px 14px' : '10px 0',
+              };
+              const linkContent = (
+                <>
+                  <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
+                  {showLabel && (
+                    <>
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {item.count != null && <span style={styles.navCount}>{item.count}</span>}
+                    </>
+                  )}
+                </>
+              );
+              if (item.external) {
+                return (
+                  <a key={item.href} href={item.href} target="_blank" rel="noopener noreferrer" style={linkStyle}
+                    onClick={() => isMobile && setMobileOpen(false)}>
+                    {linkContent}
+                  </a>
+                );
+              }
+              return (
+                <Link key={item.href} href={item.href} style={linkStyle}
+                  onClick={() => isMobile && setMobileOpen(false)}>
+                  {linkContent}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+      <div style={styles.sidebarFooter}>
+        <div style={styles.avatar} title={userEmail}>{avatarChar}</div>
+        {showLabel && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={styles.footerName} title={userEmail}>{emailLocal}</div>
+            <div style={styles.footerRole}>{ROLE_LABEL[role]}</div>
+          </div>
+        )}
+        <button onClick={handleLogout} style={styles.logoutBtn} title="로그아웃">
+          {showLabel ? '로그아웃' : '↩'}
+        </button>
+      </div>
+    </aside>
+  );
+
+  const staffCallModal = staffCall && (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(14,18,32,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, animation: 'fadeIn .15s ease' }}
+      onClick={() => setStaffCall(null)}
+    >
+      <div
+        style={{ background: '#fff', borderRadius: 'var(--r-lg)', padding: '32px 36px', maxWidth: 400, width: '90%', boxShadow: 'var(--shadow-3)', textAlign: 'center', border: '2px solid var(--coral)', animation: 'pop .2s ease' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'color-mix(in oklab, var(--coral) 12%, white)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 28 }}>🔔</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--ink-900)' }}>직원 호출</div>
+        <div style={{ fontSize: 15, color: 'var(--ink-600)', marginBottom: 24, lineHeight: 1.5 }}>
+          <strong style={{ color: 'var(--coral)' }}>{staffCall.table}번 테이블</strong>에서<br />직원을 호출했습니다!
+        </div>
+        <button onClick={() => setStaffCall(null)} style={{ padding: '10px 32px', borderRadius: 'var(--r-md)', border: 0, background: 'var(--ink-900)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--f-sans)' }}>확인</button>
+      </div>
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <AdminRoleContext.Provider value={role}>
+        <div style={{ minHeight: '100vh', background: 'var(--surface-2)', display: 'flex', flexDirection: 'column' }}>
+          {/* Mobile top bar */}
+          <header style={{ position: 'sticky', top: 0, zIndex: 200, height: 52, background: 'var(--ink-900)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', flexShrink: 0 }}>
+            <button
+              onClick={() => setMobileOpen(true)}
+              style={{ width: 36, height: 36, border: 0, background: 'transparent', color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            >
+              ☰
+            </button>
+            <div style={styles.logo}>{storeName.charAt(0)}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ ...styles.brandName, fontSize: 14 }}>{storeName}</div>
+            </div>
+            {paymentPendingCount != null && paymentPendingCount > 0 && (
+              <span style={{ background: 'var(--crim)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{paymentPendingCount}</span>
+            )}
+          </header>
+
+          {/* Drawer overlay */}
+          {mobileOpen && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex' }}>
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(14,18,32,.45)' }} onClick={() => setMobileOpen(false)} />
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column' }}>
+                {sidebarInner}
+              </div>
+            </div>
+          )}
+
+          <main style={{ flex: 1, overflowY: 'auto' }}>{children}</main>
+        </div>
+        {staffCallModal}
+      </AdminRoleContext.Provider>
+    );
+  }
+
   return (
     <AdminRoleContext.Provider value={role}>
     <div style={styles.frame}>
       <div style={{ ...styles.grid, gridTemplateColumns: collapsed ? '72px 1fr' : '220px 1fr' }}>
-        {/* Sidebar */}
-        <aside style={styles.sidebar}>
-          {/* Brand */}
-          <div style={styles.brand}>
-            <div style={styles.logo}>{storeName.charAt(0)}</div>
-            {!collapsed && (
-              <div>
-                <div style={styles.brandName}>{storeName}</div>
-                <div style={styles.brandSub}>관리자 콘솔</div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <nav style={styles.nav}>
-            {navSections.map((section) => (
-              <div key={section.label} style={styles.navSection}>
-                {!collapsed && <div style={styles.navSectionLabel}>{section.label}</div>}
-                {section.items.map((item) => {
-                  const isActive = !item.external && (pathname === item.href || pathname?.startsWith(item.href + '/'));
-                  const linkStyle = {
-                    ...styles.navItem,
-                    ...(isActive ? styles.navItemActive : {}),
-                    justifyContent: collapsed ? 'center' : 'flex-start',
-                    padding: collapsed ? '10px 0' : '10px 14px',
-                  };
-                  const linkContent = (
-                    <>
-                      <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{item.icon}</span>
-                      {!collapsed && (
-                        <>
-                          <span style={{ flex: 1 }}>{item.label}</span>
-                          {item.count != null && (
-                            <span style={styles.navCount}>{item.count}</span>
-                          )}
-                        </>
-                      )}
-                    </>
-                  );
-
-                  if (item.external) {
-                    return (
-                      <a
-                        key={item.href}
-                        href={item.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={linkStyle}
-                      >
-                        {linkContent}
-                      </a>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      style={linkStyle}
-                    >
-                      {linkContent}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-
-          {/* Footer */}
-          <div style={styles.sidebarFooter}>
-            <div style={styles.avatar} title={userEmail}>{avatarChar}</div>
-            {!collapsed && (
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={styles.footerName} title={userEmail}>{emailLocal}</div>
-                <div style={styles.footerRole}>{ROLE_LABEL[role]}</div>
-              </div>
-            )}
-            <button onClick={handleLogout} style={styles.logoutBtn} title="로그아웃">
-              {collapsed ? '↩' : '로그아웃'}
-            </button>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main style={styles.main}>
-          {children}
-        </main>
+        {sidebarInner}
+        <main style={styles.main}>{children}</main>
       </div>
-
-      {/* Staff Call Modal — visible on ALL admin pages */}
-      {staffCall && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(14,18,32,.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            animation: 'fadeIn .15s ease',
-          }}
-          onClick={() => setStaffCall(null)}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 'var(--r-lg)',
-              padding: '32px 36px',
-              maxWidth: 400,
-              width: '90%',
-              boxShadow: 'var(--shadow-3)',
-              textAlign: 'center',
-              border: '2px solid var(--coral)',
-              animation: 'pop .2s ease',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'color-mix(in oklab, var(--coral) 12%, white)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px', fontSize: 28,
-            }}>
-              🔔
-            </div>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8, color: 'var(--ink-900)' }}>
-              직원 호출
-            </div>
-            <div style={{ fontSize: 15, color: 'var(--ink-600)', marginBottom: 24, lineHeight: 1.5 }}>
-              <strong style={{ color: 'var(--coral)' }}>{staffCall.table}번 테이블</strong>에서
-              <br />직원을 호출했습니다!
-            </div>
-            <button
-              onClick={() => setStaffCall(null)}
-              style={{
-                padding: '10px 32px', borderRadius: 'var(--r-md)',
-                border: 0, background: 'var(--ink-900)', color: '#fff',
-                fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--f-sans)',
-              }}
-            >
-              확인
-            </button>
-          </div>
-        </div>
-      )}
+      {staffCallModal}
     </div>
     </AdminRoleContext.Provider>
   );

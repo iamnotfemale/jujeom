@@ -236,7 +236,7 @@ function PaymentsPage() {
   };
 
   return (
-    <div className="pb-10 max-w-[1060px]">
+    <div className="pb-10 max-w-[1060px] min-w-0">
       {/* Flow Banner */}
       <div
         className="flex items-center justify-center gap-1 py-[14px] px-6 flex-wrap"
@@ -277,7 +277,7 @@ function PaymentsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 px-7 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-7 mb-5">
         <div className="bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] py-[14px] px-4">
           <div className="text-xs font-medium text-[var(--ink-400)] mb-[6px]">총 주문</div>
           <div className="text-[26px] font-extrabold leading-[1.2] tracking-[-0.02em] numeric">{totalOrders}</div>
@@ -309,7 +309,7 @@ function PaymentsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-[10px] px-7 mb-4 flex-wrap">
+      <div className="flex items-center gap-[10px] px-4 md:px-7 mb-4 flex-wrap">
         <input
           type="text"
           placeholder="주문번호, 이름, 연락처 검색..."
@@ -344,7 +344,7 @@ function PaymentsPage() {
       </div>
 
       {/* Table */}
-      <div className="mx-7 bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden">
+      <div className="mx-4 md:mx-7 bg-[var(--white)] border border-[var(--border)] rounded-[var(--r-lg)] overflow-hidden overflow-x-auto">
         {loading ? (
           <div className="p-10 text-center text-[var(--ink-400)]">불러오는 중...</div>
         ) : filtered.length === 0 ? (
@@ -459,7 +459,7 @@ function PaymentsPage() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between py-[14px] px-7">
+      <div className="flex items-center justify-between py-[14px] px-4 md:px-7">
         <span className="text-[13px] text-[var(--ink-500)]">
           총 {filtered.length}건 표시 중
         </span>

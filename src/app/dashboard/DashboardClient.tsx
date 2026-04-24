@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useConfirm } from '@/components/ConfirmProvider';
 
 export interface StoreCard {
   role: 'owner' | 'manager' | 'kitchen';
@@ -26,12 +27,14 @@ export default function DashboardClient({
   initialStores: StoreCard[];
 }) {
   const router = useRouter();
+  const { confirm } = useConfirm();
   const [stores, setStores] = useState<StoreCard[]>(initialStores);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchStores = useCallback(async () => {
@@ -71,6 +74,23 @@ export default function DashboardClient({
       router.push(`/s/${slug}/admin/dashboard`);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const onDelete = async (card: StoreCard) => {
+    const ok = await confirm({
+      title: '주점 삭제',
+      message: `"${card.store.name}"을 삭제하면 모든 메뉴·주문·결제 데이터가 함께 삭제됩니다. 되돌릴 수 없습니다.`,
+      confirmText: '삭제',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeleting(card.store.id);
+    try {
+      const res = await fetch(`/api/stores/${card.store.slug}`, { method: 'DELETE' });
+      if (res.ok) setStores((prev) => prev.filter((s) => s.store.id !== card.store.id));
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -116,36 +136,52 @@ export default function DashboardClient({
           </div>
         ) : (
           <div className="grid gap-[14px] grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
-            {stores.map(({ store, role }) => (
-              <Link
-                key={store.id}
-                href={`/s/${store.slug}/admin/dashboard`}
-                className="bg-[var(--surface)] rounded-[var(--r-lg)] p-[18px] no-underline text-inherit border border-[var(--border)] flex flex-col gap-[10px] shadow-[var(--shadow-1)] transition-[transform_box-shadow] duration-[100ms,150ms] ease"
-              >
-                <div className="flex justify-between items-center gap-2">
-                  <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">{store.name}</div>
-                  <span className={`badge ${roleBadgeClass(role)}`} style={{ fontSize: 11 }}>
-                    {labelRole(role)}
-                  </span>
-                </div>
+            {stores.map((card) => {
+              const { store, role } = card;
+              return (
+              <div key={store.id} className="relative group">
+                <Link
+                  href={`/s/${store.slug}/admin/dashboard`}
+                  className="bg-[var(--surface)] rounded-[var(--r-lg)] p-[18px] no-underline text-inherit border border-[var(--border)] flex flex-col gap-[10px] shadow-[var(--shadow-1)] transition-[transform_box-shadow] duration-[100ms,150ms] ease block"
+                >
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">{store.name}</div>
+                    <span className={`badge ${roleBadgeClass(role)}`} style={{ fontSize: 11 }}>
+                      {labelRole(role)}
+                    </span>
+                  </div>
 
-                <div>
-                  <code className="text-xs text-[var(--ink-600)] bg-[var(--ink-050)] py-[3px] px-2 rounded-[var(--r-sm)] font-[var(--f-sans)]">/s/{store.slug}</code>
-                </div>
+                  <div>
+                    <code className="text-xs text-[var(--ink-600)] bg-[var(--ink-050)] py-[3px] px-2 rounded-[var(--r-sm)] font-[var(--f-sans)]">/s/{store.slug}</code>
+                  </div>
 
-                <div className="flex gap-2 items-center mt-1">
-                  <span
-                    className={`badge ${store.is_open ? 'badge-mint' : 'badge-neutral'}`}
-                    style={{ fontSize: 11 }}
+                  <div className="flex gap-2 items-center mt-1">
+                    <span
+                      className={`badge ${store.is_open ? 'badge-mint' : 'badge-neutral'}`}
+                      style={{ fontSize: 11 }}
+                    >
+                      {store.is_open ? '영업 중' : '영업 종료'}
+                    </span>
+                    <span className="text-xs text-[var(--text-3)] font-medium">
+                      {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
+                    </span>
+                  </div>
+                </Link>
+                {role === 'owner' && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); void onDelete(card); }}
+                    disabled={deleting === store.id}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full border-0 flex items-center justify-center text-[13px] cursor-pointer transition-opacity"
+                    style={{ background: 'color-mix(in oklab, var(--crim) 12%, white)', color: 'var(--crim)' }}
+                    title="주점 삭제"
                   >
-                    {store.is_open ? '영업 중' : '영업 종료'}
-                  </span>
-                  <span className="text-xs text-[var(--text-3)] font-medium">
-                    {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                    {deleting === store.id ? '…' : '×'}
+                  </button>
+                )}
+              </div>
+              );
+            })}
           </div>
         )}
 
