@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { serverSignUp } from '@/app/actions/auth';
 
 export default function SignupPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,19 +20,15 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
+    const result = await serverSignUp(email, password);
+    if (result?.error) {
+      setLoading(false);
+      setError(result.error);
+    } else if (result?.info) {
+      setLoading(false);
+      setInfo(result.info);
     }
-    if (data.session) {
-      router.replace('/dashboard');
-      router.refresh();
-    } else {
-      setInfo('가입 완료! 이메일로 보낸 확인 링크를 클릭해 주세요.');
-    }
+    // 세션이 즉시 발급된 경우 server action 내부에서 redirect('/dashboard') 처리
   };
 
   return (
@@ -48,7 +42,7 @@ export default function SignupPage() {
             주
           </div>
           <div>
-            <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">주점</div>
+            <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">차림</div>
             <div className="text-xs text-[var(--text-3)] mt-[2px]">관리자 콘솔</div>
           </div>
         </div>

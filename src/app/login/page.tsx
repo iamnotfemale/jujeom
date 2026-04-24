@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import { serverSignIn } from '@/app/actions/auth';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -18,15 +18,13 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+    // 서버 액션: 서버에서 signInWithPassword 실행 → 쿠키 HTTP 응답에 포함 → redirect
+    const result = await serverSignIn(email, password, next);
+    // redirect() 호출 시 result는 반환되지 않음. 에러만 반환됨
+    if (result?.error) {
+      setLoading(false);
+      setError(mapLoginError(result.error));
     }
-    // 전체 페이지 이동으로 서버 세션 쿠키를 확실히 전달
-    window.location.href = next;
   };
 
   return (
@@ -40,13 +38,13 @@ function LoginForm() {
             주
           </div>
           <div>
-            <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">주점</div>
+            <div className="text-[15px] font-bold text-[var(--ink-900)] leading-[1.2]">차림</div>
             <div className="text-xs text-[var(--text-3)] mt-[2px]">관리자 콘솔</div>
           </div>
         </div>
 
         <h1 className="text-2xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mt-2 mb-1">로그인</h1>
-        <p className="text-[13px] text-[var(--text-3)] mb-4">학생회 계정으로 로그인하고 가게를 관리하세요.</p>
+        <p className="text-[13px] text-[var(--text-3)] mb-4">학생회 계정으로 로그인하고 주점을 관리하세요.</p>
 
         <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">이메일</label>
         <input
@@ -101,4 +99,17 @@ export default function LoginPage() {
       <LoginForm />
     </Suspense>
   );
+}
+
+function mapLoginError(msg: string): string {
+  if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+    return '이메일 또는 비밀번호가 올바르지 않습니다.';
+  }
+  if (msg.includes('Email not confirmed')) {
+    return '이메일 인증이 필요합니다. 메일함을 확인해 주세요.';
+  }
+  if (msg.includes('Too many requests')) {
+    return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.';
+  }
+  return msg;
 }
