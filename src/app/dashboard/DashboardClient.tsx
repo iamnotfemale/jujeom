@@ -30,21 +30,31 @@ export default function DashboardClient({
   const { confirm } = useConfirm();
   const [stores, setStores] = useState<StoreCard[]>(initialStores);
   const [loading, setLoading] = useState(false);
+
+  // 새 주점 생성
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSlug, setNewSlug] = useState('');
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // 설정 팝업
+  const [settingsCard, setSettingsCard] = useState<StoreCard | null>(null);
+
+  // 이름 변경
+  const [renameCard, setRenameCard] = useState<StoreCard | null>(null);
+  const [renameName, setRenameName] = useState('');
+  const [renaming, setRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  // 삭제
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchStores = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/stores');
-      if (res.status === 401) {
-        router.replace('/login');
-        return;
-      }
+      if (res.status === 401) { router.replace('/login'); return; }
       const json = (await res.json()) as { stores?: StoreCard[]; error?: string };
       if (res.ok) setStores(json.stores ?? []);
     } finally {
@@ -54,7 +64,7 @@ export default function DashboardClient({
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setCreateError(null);
     setCreating(true);
     try {
       const res = await fetch('/api/stores', {
@@ -63,10 +73,7 @@ export default function DashboardClient({
         body: JSON.stringify({ name: newName, slug: newSlug || undefined }),
       });
       const json = await res.json();
-      if (!res.ok) {
-        setError(mapError(json.error as string));
-        return;
-      }
+      if (!res.ok) { setCreateError(mapError(json.error as string)); return; }
       setShowCreate(false);
       setNewName('');
       setNewSlug('');
@@ -77,7 +84,47 @@ export default function DashboardClient({
     }
   };
 
+  const openSettings = (card: StoreCard) => setSettingsCard(card);
+  const closeSettings = () => setSettingsCard(null);
+
+  const openRename = (card: StoreCard) => {
+    setSettingsCard(null);
+    setRenameCard(card);
+    setRenameName(card.store.name);
+    setRenameError(null);
+  };
+  const closeRename = () => { setRenameCard(null); setRenameName(''); setRenameError(null); };
+
+  const onRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameCard) return;
+    const trimmed = renameName.trim();
+    if (!trimmed || trimmed === renameCard.store.name) { closeRename(); return; }
+    setRenaming(true);
+    setRenameError(null);
+    try {
+      const res = await fetch(`/api/stores/${renameCard.store.slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setRenameError(json.error ?? '오류가 발생했습니다.'); return; }
+      setStores((prev) =>
+        prev.map((s) =>
+          s.store.id === renameCard.store.id
+            ? { ...s, store: { ...s.store, name: trimmed } }
+            : s,
+        ),
+      );
+      closeRename();
+    } finally {
+      setRenaming(false);
+    }
+  };
+
   const onDelete = async (card: StoreCard) => {
+    setSettingsCard(null);
     const ok = await confirm({
       title: '주점 삭제',
       message: `"${card.store.name}"을 삭제하면 모든 메뉴·주문·결제 데이터가 함께 삭제됩니다. 되돌릴 수 없습니다.`,
@@ -104,7 +151,7 @@ export default function DashboardClient({
           <div className="flex items-center gap-3">
             <div className="w-[42px] h-[42px] rounded-[var(--r-sm)] bg-[var(--ink-900)] text-[var(--neon)] flex items-center justify-center font-extrabold text-lg">주</div>
             <div>
-              <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 가게</div>
+              <div className="text-lg font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">내 주점</div>
               <div className="text-xs text-[var(--text-3)] mt-[2px]">{userEmail}</div>
             </div>
           </div>
@@ -119,7 +166,7 @@ export default function DashboardClient({
               className="btn btn-primary btn-sm"
               style={{ opacity: canCreate ? 1 : 0.4, cursor: canCreate ? 'pointer' : 'not-allowed' }}
             >
-              + 새 가게
+              + 새 주점
             </button>
           </div>
         </header>
@@ -129,9 +176,9 @@ export default function DashboardClient({
         ) : stores.length === 0 ? (
           <div className="my-10 py-12 px-8 text-center bg-[var(--surface)] rounded-[var(--r-lg)] border border-dashed border-[var(--ink-200)]">
             <div className="text-[40px] mb-3">🍻</div>
-            <div className="text-[17px] font-extrabold text-[var(--ink-900)] mb-[6px]">아직 가게가 없어요</div>
+            <div className="text-[17px] font-extrabold text-[var(--ink-900)] mb-[6px]">아직 주점이 없어요</div>
             <div className="text-sm text-[var(--text-2)] leading-relaxed">
-              우측 상단의 <strong className="text-[var(--ink-900)]">+ 새 가게</strong>를 눌러 첫 가게를 만들어 보세요.
+              우측 상단의 <strong className="text-[var(--ink-900)]">+ 새 주점</strong>을 눌러 첫 주점을 만들어 보세요.
             </div>
           </div>
         ) : (
@@ -139,58 +186,63 @@ export default function DashboardClient({
             {stores.map((card) => {
               const { store, role } = card;
               return (
-              <div key={store.id} className="relative group">
-                <Link
-                  href={`/s/${store.slug}/admin/dashboard`}
-                  className="bg-[var(--surface)] rounded-[var(--r-lg)] p-[18px] no-underline text-inherit border border-[var(--border)] flex flex-col gap-[10px] shadow-[var(--shadow-1)] transition-[transform_box-shadow] duration-[100ms,150ms] ease block"
+                <div
+                  key={store.id}
+                  className="bg-[var(--surface)] rounded-[var(--r-lg)] border border-[var(--border)] shadow-[var(--shadow-1)] flex flex-col overflow-hidden"
                 >
-                  <div className="flex justify-between items-center gap-2">
-                    <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">{store.name}</div>
-                    <span className={`badge ${roleBadgeClass(role)}`} style={{ fontSize: 11 }}>
-                      {labelRole(role)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <code className="text-xs text-[var(--ink-600)] bg-[var(--ink-050)] py-[3px] px-2 rounded-[var(--r-sm)] font-[var(--f-sans)]">/s/{store.slug}</code>
-                  </div>
-
-                  <div className="flex gap-2 items-center mt-1">
-                    <span
-                      className={`badge ${store.is_open ? 'badge-mint' : 'badge-neutral'}`}
-                      style={{ fontSize: 11 }}
-                    >
-                      {store.is_open ? '영업 중' : '영업 종료'}
-                    </span>
-                    <span className="text-xs text-[var(--text-3)] font-medium">
-                      {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
-                    </span>
-                  </div>
-                </Link>
-                {role === 'owner' && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); void onDelete(card); }}
-                    disabled={deleting === store.id}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full border-0 flex items-center justify-center text-[13px] cursor-pointer transition-opacity"
-                    style={{ background: 'color-mix(in oklab, var(--crim) 12%, white)', color: 'var(--crim)' }}
-                    title="주점 삭제"
+                  <Link
+                    href={`/s/${store.slug}/admin/dashboard`}
+                    className="p-[18px] no-underline text-inherit flex flex-col gap-[10px] flex-1"
                   >
-                    {deleting === store.id ? '…' : '×'}
-                  </button>
-                )}
-              </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em]">{store.name}</div>
+                      <span className={`badge ${roleBadgeClass(role)}`} style={{ fontSize: 11 }}>
+                        {labelRole(role)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <code className="text-xs text-[var(--ink-600)] bg-[var(--ink-050)] py-[3px] px-2 rounded-[var(--r-sm)] font-[var(--f-sans)]">/s/{store.slug}</code>
+                    </div>
+
+                    <div className="flex gap-2 items-center mt-1">
+                      <span
+                        className={`badge ${store.is_open ? 'badge-mint' : 'badge-neutral'}`}
+                        style={{ fontSize: 11 }}
+                      >
+                        {store.is_open ? '영업 중' : '영업 종료'}
+                      </span>
+                      <span className="text-xs text-[var(--text-3)] font-medium">
+                        {store.serving_mode === 'table' ? '테이블 서빙' : '픽업'}
+                      </span>
+                    </div>
+                  </Link>
+
+                  {role === 'owner' && (
+                    <div className="border-t border-[var(--border)] px-[14px] py-[9px] flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => openSettings(card)}
+                        disabled={deleting === store.id}
+                        className="text-xs font-semibold text-[var(--text-2)] hover:text-[var(--ink-900)] px-2 py-1 rounded-[var(--r-sm)] hover:bg-[var(--ink-050)] transition-colors cursor-pointer border-0 bg-transparent"
+                      >
+                        {deleting === store.id ? '삭제 중…' : '설정'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
 
         <div className="mt-7 text-[13px] text-[var(--text-3)] text-center">
-          유저당 최대 <strong className="text-[var(--ink-900)]">{MAX_STORES}개</strong>의 가게를 소유할 수 있습니다
+          유저당 최대 <strong className="text-[var(--ink-900)]">{MAX_STORES}개</strong>의 주점을 소유할 수 있습니다
           (현재 <span className="numeric">{ownedCount}/{MAX_STORES}</span>).
         </div>
       </div>
 
+      {/* ── 새 주점 생성 모달 ── */}
       {showCreate && (
         <div
           className="fixed inset-0 bg-[rgba(14,18,32,.45)] backdrop-blur-[4px] flex items-center justify-center p-5 z-[100] [animation:fadeIn_.15s_ease]"
@@ -201,10 +253,10 @@ export default function DashboardClient({
             className="w-full max-w-[420px] bg-[var(--surface)] rounded-[var(--r-xl)] p-7 flex flex-col gap-[6px] border border-[var(--border)] shadow-[var(--shadow-3)] [animation:pop_.2s_ease]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-1">새 가게 만들기</h2>
+            <h2 className="text-xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-1">새 주점 만들기</h2>
             <p className="text-[13px] text-[var(--text-2)] leading-relaxed mb-3">축제용 주점 한 곳을 만들 거예요. 이름은 QR과 손님 화면에 그대로 표시됩니다.</p>
 
-            <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">가게 이름</label>
+            <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">주점 이름</label>
             <input
               required
               autoFocus
@@ -225,28 +277,92 @@ export default function DashboardClient({
             />
             <div className="text-[11px] text-[var(--text-3)] mt-1">영소문자·숫자·하이픈만 3~50자</div>
 
-            {error && (
+            {createError && (
               <div className="mt-3 py-[10px] px-3 bg-[color-mix(in_oklab,var(--crim)_10%,white)] border border-[color-mix(in_oklab,var(--crim)_30%,white)] rounded-[var(--r-sm)] text-[13px] text-[#8e0f0f]">
-                {error}
+                {createError}
               </div>
             )}
 
             <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => setShowCreate(false)} disabled={creating} className="btn btn-ghost flex-1">취소</button>
+              <button type="submit" disabled={creating} className="btn btn-accent flex-1">{creating ? '생성 중…' : '생성'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── 설정 팝업 ── */}
+      {settingsCard && (
+        <div
+          className="fixed inset-0 bg-[rgba(14,18,32,.45)] backdrop-blur-[4px] flex items-center justify-center p-5 z-[100] [animation:fadeIn_.15s_ease]"
+          onClick={closeSettings}
+        >
+          <div
+            className="w-full max-w-[340px] bg-[var(--surface)] rounded-[var(--r-xl)] overflow-hidden border border-[var(--border)] shadow-[var(--shadow-3)] [animation:pop_.2s_ease]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 pt-6 pb-4">
+              <div className="text-[11px] font-semibold text-[var(--text-3)] uppercase tracking-widest mb-1">주점 설정</div>
+              <div className="text-[17px] font-extrabold text-[var(--ink-900)] tracking-[-0.02em] truncate">{settingsCard.store.name}</div>
+            </div>
+            <div className="border-t border-[var(--border)]">
               <button
                 type="button"
-                onClick={() => setShowCreate(false)}
-                disabled={creating}
-                className="btn btn-ghost flex-1"
+                onClick={() => openRename(settingsCard)}
+                className="w-full text-left px-6 py-[14px] text-[15px] font-semibold text-[var(--ink-900)] hover:bg-[var(--ink-050)] transition-colors cursor-pointer border-0 bg-transparent"
               >
-                취소
+                이름 변경
               </button>
+              <div className="border-t border-[var(--border)]" />
               <button
-                type="submit"
-                disabled={creating}
-                className="btn btn-accent flex-1"
+                type="button"
+                onClick={() => void onDelete(settingsCard)}
+                className="w-full text-left px-6 py-[14px] text-[15px] font-semibold transition-colors cursor-pointer border-0 bg-transparent"
+                style={{ color: 'var(--crim)' }}
               >
-                {creating ? '생성 중…' : '생성'}
+                주점 삭제
               </button>
+            </div>
+            <div className="border-t border-[var(--border)] px-6 py-[12px]">
+              <button type="button" onClick={closeSettings} className="btn btn-ghost w-full">취소</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 이름 변경 모달 ── */}
+      {renameCard && (
+        <div
+          className="fixed inset-0 bg-[rgba(14,18,32,.45)] backdrop-blur-[4px] flex items-center justify-center p-5 z-[100] [animation:fadeIn_.15s_ease]"
+          onClick={() => !renaming && closeRename()}
+        >
+          <form
+            onSubmit={onRename}
+            className="w-full max-w-[400px] bg-[var(--surface)] rounded-[var(--r-xl)] p-7 flex flex-col gap-[6px] border border-[var(--border)] shadow-[var(--shadow-3)] [animation:pop_.2s_ease]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-xl font-extrabold text-[var(--ink-900)] tracking-[-0.02em] mb-1">이름 변경</h2>
+            <p className="text-[13px] text-[var(--text-2)] leading-relaxed mb-3">변경된 이름은 QR과 손님 화면에 바로 반영됩니다.</p>
+
+            <label className="text-xs font-semibold text-[var(--text-2)] mt-[10px]">주점 이름</label>
+            <input
+              required
+              autoFocus
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              className="py-3 px-[14px] rounded-[var(--r-md)] border border-[var(--border)] bg-[var(--surface-2)] text-[var(--ink-900)] text-[15px] font-[var(--f-sans)] outline-none"
+              maxLength={60}
+            />
+
+            {renameError && (
+              <div className="mt-2 py-[10px] px-3 bg-[color-mix(in_oklab,var(--crim)_10%,white)] border border-[color-mix(in_oklab,var(--crim)_30%,white)] rounded-[var(--r-sm)] text-[13px] text-[#8e0f0f]">
+                {renameError}
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={closeRename} disabled={renaming} className="btn btn-ghost flex-1">취소</button>
+              <button type="submit" disabled={renaming} className="btn btn-accent flex-1">{renaming ? '저장 중…' : '저장'}</button>
             </div>
           </form>
         </div>
@@ -257,8 +373,8 @@ export default function DashboardClient({
 
 function mapError(code?: string): string {
   switch (code) {
-    case 'max_stores_exceeded': return '가게는 최대 5개까지만 소유할 수 있습니다.';
-    case 'invalid_name':        return '가게 이름을 확인해 주세요.';
+    case 'max_stores_exceeded': return '주점은 최대 5개까지만 소유할 수 있습니다.';
+    case 'invalid_name':        return '주점 이름을 확인해 주세요.';
     case 'invalid_slug':        return 'slug는 영소문자·숫자·하이픈만 3~50자입니다.';
     case 'unauthorized':        return '로그인이 필요합니다.';
     default:                    return `오류가 발생했습니다${code ? ` (${code})` : ''}.`;
