@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const body = data.session
-    ? { ok: true, redirect: '/dashboard' }
+    ? {
+        ok: true,
+        redirect: '/dashboard',
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      }
     : { ok: true, info: '가입 완료! 이메일로 보낸 확인 링크를 클릭해 주세요.' };
 
   const res = NextResponse.json(body);

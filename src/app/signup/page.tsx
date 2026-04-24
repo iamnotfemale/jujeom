@@ -31,6 +31,13 @@ export default function SignupPage() {
       return;
     }
     if (data.redirect) {
+      if (data.access_token && data.refresh_token) {
+        const { createClient } = await import('@/lib/supabase/client');
+        await createClient().auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+      }
       window.location.href = data.redirect;
       return;
     }

@@ -28,7 +28,14 @@ function LoginForm() {
       setError(mapLoginError(data.error || '로그인 중 오류가 발생했습니다.'));
       return;
     }
-    // Route Handler가 Set-Cookie를 HTTP 응답에 포함 → fetch가 쿠키 저장 → 전체 네비게이션
+    // 서버 Set-Cookie가 실패할 경우를 대비한 클라이언트 측 세션 저장 fallback
+    if (data.access_token && data.refresh_token) {
+      const { createClient } = await import('@/lib/supabase/client');
+      await createClient().auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+    }
     window.location.href = next;
   };
 
